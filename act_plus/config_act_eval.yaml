@@ -1,0 +1,60 @@
+# 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
+save_path_head: 'data'
+save_path_end: ''
+# 任务名称
+taskclassname: 'PutRubbishInBin'
+# 演示数量
+num_demos: 10
+# 图像尺寸
+image:
+  width: 640
+  height: 480
+# 启用的相机
+cameras:
+  - 'front_camera'
+  - 'wrist_camera'
+  # - 'left_shoulder_camera'
+  # - 'right_shoulder_camera'
+  - 'overhead_camera'
+# 机器人设置
+robot_setup: 'ur5'
+
+max_steps: 1000
+
+
+# ACT模型配置
+act_policy:
+  'eval': true
+  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demos"
+  "policy_class": "ACT"
+  "onscreen_render": false
+  "task_name": "pick_and_lift"
+  "batch_size": 2
+  'num_steps': 2000
+  'eval_every': 500
+  'validate_every': 500
+  'save_every': 500
+  'resume_ckpt_path': false
+    # 原文件 policy_config
+  'lr': 0.00001
+  'chunk_size': 100
+  'kl_weight': 10
+  'hidden_dim': 512
+  'dim_feedforward': 3200
+  'use_vq': false
+  'vq_class': None
+  'vq_dim': None
+  'no_encoder': False
+    # 原文件 actuator_config 
+  'actuator_network_dir': None
+  'history_len': None
+  'future_len': None
+  'prediction_len': None
+    # 原文件 config
+  'seed': 0
+  'temporal_agg': false
+  'load_pretrain': false
+
+
+
+

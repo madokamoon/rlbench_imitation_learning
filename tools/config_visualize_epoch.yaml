@@ -1,0 +1,20 @@
+# imitation_learning 相对路径
+datapath: "data/pick_and_lift/50demos"
+
+gifshow: True
+# gifshow: False
+
+# gif目标长度
+target_seconds: 3
+# gif帧率
+giffps: 10
+# 数据采样步长 = 总帧数 / (gif帧率*目标长度)
+
+
+show_data:
+  robot_state: [0,1,2,3,4,5]
+  robot_vel_command: [0,1,2,3,4,5]
+  robot_action: [0,1,2,3,4,5]
+
+
+show_image: ["front_camera", "wrist_camera", "overhead_camera"]
