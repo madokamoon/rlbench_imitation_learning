@@ -5,7 +5,7 @@ import os
 
 
 # act修改任务信息
-DATA_DIR = '/home/madoka/python/rlbench_imitation_learning/act_plus/data'
+DATA_DIR = '~/python/rlbench_imitation_learning/act_plus/data'
 TASK_CONFIGS = {
     'put_rubbish_in_bin':{
         'dataset_dir': DATA_DIR + '/put_rubbish_in_bin/demo1',

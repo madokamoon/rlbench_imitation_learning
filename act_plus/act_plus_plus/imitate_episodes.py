@@ -65,6 +65,8 @@ def main(args):
         # from aloha_scripts.constants import TASK_CONFIGS
         from constants import TASK_CONFIGS
         task_config = TASK_CONFIGS[task_name]
+        task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
+
         
     dataset_dir = task_config['dataset_dir']
     # num_episodes = task_config['num_episodes']

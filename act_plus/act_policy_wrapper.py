@@ -82,6 +82,7 @@ class ACTPolicyWrapper:
         else:
             from act_plus_plus.constants import TASK_CONFIGS
             task_config = TASK_CONFIGS[task_name]
+            task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
 
         dataset_dir = task_config['dataset_dir']
         # num_episodes = task_config['num_episodes']
