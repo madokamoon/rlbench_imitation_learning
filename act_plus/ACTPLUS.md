@@ -44,25 +44,20 @@ pip install -e .
 
 # 生成数据集
 cd act_plus
-python act-plus-plus/record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir data/sim_transfer_cube_scripted --num_episodes 10 --onscreen_render
+python act_plus_plus/record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir data/sim_transfer_cube_scripted --num_episodes 10 --onscreen_render
 
 # 训练
-python act-plus-plus/imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir training --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 2000
+python act_plus_plus/imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir training --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 2000
 ```
 
-### put_rubbish_in_bin
+### pick_and_lift
 
-训练 put_rubbish_in_bin
-
-```bash
-python act_plus_plus/imitate_episodes.py --task_name put_rubbish_in_bin --ckpt_dir training/put_rubbish_in_bin --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
-```
 
 
 训练 pick_and_lift
 
 ```bash
-python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/50demos --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 10000
+python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/50demosmask --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 10000
 ```
 
 
@@ -100,7 +95,7 @@ python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir tr
 
 ```bash
 # 复制训练数据
-scp -r -P 2122 ~/python/rlbench_imitation_learning/data/pick_and_lift/50demos_hdf5 haoyue@service.qich.top:/home/hddData/haoyue/rlbench_imitation_learning/data/pick_and_lift
+scp -r -P 2122 ~/python/rlbench_imitation_learning/data/pick_and_lift/50demos_hdf5/ haoyue@service.qich.top:/home/hddData/haoyue/rlbench_imitation_learning/data/pick_and_lift
 # 复制训练结果
 scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demos8 ~/python/rlbench_imitation_learning/act_plus/training/pick_and_lift
 ```
