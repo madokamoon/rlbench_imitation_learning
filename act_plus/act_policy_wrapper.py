@@ -302,10 +302,10 @@ class ACTPolicyWrapper:
                 self.all_actions = self.policy(qpos, curr_image)
                 # self.all_actions = []
                 # self.all_actions = copy.deepcopy(self.policy(qpos, curr_image))
-                print(self.query_frequency,'步一推理')
+                print(self.query_frequency,'推理')
                 print(self.all_actions.shape)
-                # print("当前位置",qpos)
-                # print("输出位置",self.all_actions[:,0:20,0:7])
+                print(qpos)
+                print(self.all_actions[:,0:10,0:8])
 
 
             if self.temporal_agg:

@@ -5,7 +5,11 @@ import os
 
 
 # act修改任务信息
-DATA_DIR = '~/python/rlbench_imitation_learning/act_plus/data'
+
+# DATA_DIR = '~/python/rlbench_imitation_learning/data'
+# service.qich.top
+DATA_DIR = '/home/hddData/haoyue/rlbench_imitation_learning/data'
+
 TASK_CONFIGS = {
     'put_rubbish_in_bin':{
         'dataset_dir': DATA_DIR + '/put_rubbish_in_bin/demo1',
@@ -14,10 +18,11 @@ TASK_CONFIGS = {
         'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     },
     'pick_and_lift':{
-        'dataset_dir': DATA_DIR + '/pick_and_lift/50demos',
+        'dataset_dir': DATA_DIR + '/pick_and_lift/50demos_hdf5',
         'episode_len': 250,
         'train_ratio': 0.95,
-        'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
+        'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera',
+                         'front_camera_mask_rgb', 'wrist_camera_mask_rgb', 'overhead_camera_mask_rgb']
     },
 }
 

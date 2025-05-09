@@ -1,64 +1,84 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from sklearn.cluster import KMeans
 
-# 读取掩码图像
-mask_path = '/home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/2025-05-08-16-10-53/0/front_camera_mask/0.png'
-mask = cv2.imread(mask_path)
+# 读取掩码图像为灰度模式
+mask_path = '/home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/1demos/0/front_camera_mask/100.png'
+mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+
+print(f"掩码形状: {mask.shape}")
 
 # 检查图像是否成功读取
 if mask is None:
     print(f"无法读取图像: {mask_path}")
-else:
-    # 将 BGR 转换为 RGB 
-    mask_rgb = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+    exit()
+
+# 找出唯一灰度值
+unique_values = np.unique(mask)
+num_values = len(unique_values)
+
+print(f"图像中共有 {num_values} 种不同的灰度值")
+
+# 创建一个彩色图像用于可视化
+colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+display_img = cv2.cvtColor(mask.copy(), cv2.COLOR_GRAY2BGR)
+
+# 为每种灰度值分配一个彩色值并标注
+cmap = plt.cm.get_cmap('tab20', num_values)
+new_colors = (cmap(np.arange(num_values))[:, :3] * 255).astype(np.uint8)
+
+# 为每个区域应用不同的颜色
+for i, value in enumerate(unique_values):
+    # 创建二值掩码
+    binary_mask = (mask == value).astype(np.uint8)
     
-    # 将图像重塑为像素列表
-    pixels = mask_rgb.reshape(-1, 3)
+    # 使用OpenCV的连通组件分析代替skimage
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_mask)
     
-    # 找出唯一颜色
-    unique_colors = np.unique(pixels, axis=0)
-    num_colors = len(unique_colors)
+    # 获取区域颜色
+    color = new_colors[i]
+    color_bgr = (int(color[2]), int(color[1]), int(color[0]))  # RGB转BGR
     
-    print(f"图像中共有 {num_colors} 种不同的颜色")
+    # 为彩色可视化图应用颜色
+    colored_mask[binary_mask == 1] = color
     
-    # 创建一个彩色图像来显示不同的区域
-    colored_mask = np.zeros_like(mask_rgb)
-    
-    # 为每种颜色分配一个新的彩色值
-    cmap = plt.cm.get_cmap('tab20', num_colors)
-    new_colors = (cmap(np.arange(num_colors))[:, :3] * 255).astype(np.uint8)
-    
-    # 创建颜色映射
-    color_map = {}
-    for i, color in enumerate(unique_colors):
-        color_map[tuple(color)] = new_colors[i]
-    
-    # 可选: 打印颜色映射
-    print("颜色映射:")
-    for i, (orig_color, new_color) in enumerate(color_map.items()):
-        print(f"区域 {i+1}: 原始颜色 {orig_color} -> 新颜色 {new_color}")
-    
-    # 为每个区域应用新颜色
-    for i in range(mask_rgb.shape[0]):
-        for j in range(mask_rgb.shape[1]):
-            pixel_color = tuple(mask_rgb[i, j])
-            colored_mask[i, j] = color_map[pixel_color]
-    
-    # 显示原始掩码和彩色区域
-    plt.figure(figsize=(12, 6))
-    
-    plt.subplot(1, 2, 1)
-    plt.title(f"原始掩码图像 ({num_colors} 种颜色)")
-    plt.imshow(mask_rgb)
-    plt.axis('off')
-    
-    plt.subplot(1, 2, 2)
-    plt.title("彩色区分的区域")
-    plt.imshow(colored_mask)
-    plt.axis('off')
-    
-    plt.tight_layout()
-    plt.show()
+    # 找到面积最大的连通区域用于标注(跳过背景标签0)
+    if num_labels > 1:
+        # 按面积排序区域(跳过背景)
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        largest_label = np.argmax(areas) + 1  # +1因为跳过了背景
+        
+        # 获取中心点
+        x = int(centroids[largest_label][0])
+        y = int(centroids[largest_label][1])
+        
+        # 在显示图像上标记灰度值
+        cv2.putText(display_img, str(value), (x, y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+        
+        # 输出信息
+        print(f"区域 {i+1}: 灰度值 {value}, 面积最大连通块中心点: ({x}, {y}), 区域颜色: {color}")
+
+# 显示结果
+cv2.namedWindow('Mask with Labels', cv2.WINDOW_NORMAL)
+cv2.imshow('Mask with Labels', display_img)
+
+cv2.namedWindow('Colored Regions', cv2.WINDOW_NORMAL)
+cv2.imshow('Colored Regions', cv2.cvtColor(colored_mask, cv2.COLOR_RGB2BGR))
+
+print("按任意键退出")
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+
+# ACT模型使用示例
+# 方法1: 使用单通道掩码
+mask_for_model = mask  # 已经是单通道
+
+# 方法2: 扩展为3通道掩码
+mask_3channel = np.stack([mask, mask, mask], axis=2)
+
+# 终点 83        （255，0，0）
+# 夹爪 35 31 34  （255，0，0）
+# 物体 84        （0，255，0）
+# 其余设置为      （0，0，0）

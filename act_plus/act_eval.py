@@ -156,9 +156,10 @@ class RLBenchACTController:
         if hasattr(obs, 'overhead_rgb') and obs.overhead_rgb is not None and 'overhead_camera' in self.camera_names:
             imgdata['overhead_camera'] = obs.overhead_rgb
         
+        import copy
         # 提取机器人状态
-        robot_state = list(obs.joint_positions)  # 关节位置
-        robot_state.append(float(1 - obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
+        robot_state = list(copy.deepcopy(obs.gripper_pose))  # 关节位置
+        robot_state.append(copy.deepcopy(obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
         
         return imgdata, robot_state
     

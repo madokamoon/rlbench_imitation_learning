@@ -34,18 +34,18 @@ class RLBenchProcessor:
             self.config = yaml.safe_load(f)
  
         # 从配置中获取参数
-        self.save_path_head = self.config.get('save_path_head', 'data')
-        self.save_path_end = self.config.get('save_path_end', '')
-        self.taskclassname = self.config['taskclassname']
-        self.num_demos = self.config.get('num_demos', 1)
+        self.save_path_head = self.config.get('save_path_head')
+        self.save_path_end = self.config.get('save_path_end')
+        self.taskname = self.config.get('taskname')
+        self.num_demos = self.config.get('num_demos')
         self.image_width = self.config['image']['width']
         self.image_height = self.config['image']['height']
         self.camera_names = self.config['cameras']
-        self.robot_setup = self.config['robot_setup']
         
         # 确定运行模式 (采样 or 反应)
         self.reaction_mode = self.config.get('reaction', False)
         if self.reaction_mode:
+
             self.data_path = self.config['data_path']
 
         # 初始化环境和任务相关变量
@@ -106,6 +106,13 @@ class RLBenchProcessor:
           
         return obs_config
 
+    def task_file_to_task_class(self, task_file):
+        class_name = ''.join([w[0].upper() + w[1:] for w in task_file.split('_')])
+        mod = importlib.import_module("rlbench.tasks.%s" % task_file)
+        mod = importlib.reload(mod)
+        task_class = getattr(mod, class_name)
+        return task_class,class_name
+
     def setup_environment(self):
         """设置并启动RLBench环境"""
         # 创建观测配置
@@ -137,7 +144,6 @@ class RLBenchProcessor:
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=False,
-# robot_setup=self.robot_setup
 )
             
         self.env.launch()
@@ -145,9 +151,9 @@ class RLBenchProcessor:
 
     def load_task(self):
         """加载指定的任务"""
-        print(f"加载任务: {self.taskclassname}")
-        module = importlib.import_module('rlbench.tasks')
-        task_class = getattr(module, self.taskclassname)
+        print(f"加载任务: {self.taskname}")
+        task_class,classname = self.task_file_to_task_class(self.taskname)
+        print(f"加载任务类: {classname}")
         self.task = self.env.get_task(task_class)
         print("任务加载成功")
 
@@ -247,6 +253,7 @@ class RLBenchProcessor:
                 # 保存RGB图像
                 rgb_attr = camera_mapping[camera_name]['rgb']
                 rgb_img = getattr(obs, rgb_attr, None)
+                # print("rgb_img.shape",rgb_img.shape)
                 if rgb_img is not None:
                     rgb_path = episode_folder.joinpath(camera_name, f"{i}.png")
                     Image.fromarray(rgb_img).save(str(rgb_path))
@@ -254,6 +261,7 @@ class RLBenchProcessor:
                 # 保存深度图像
                 depth_attr = camera_mapping[camera_name]['depth']
                 depth_img = getattr(obs, depth_attr, None)
+                # print("depth_img.shape",depth_img.shape)
                 if depth_img is not None:
                     depth_path = episode_folder.joinpath(f"{camera_name}_depth", f"{i}.png")
                     depth_image = np.clip(depth_img * 100, 0, 255).astype(np.uint8)
@@ -262,6 +270,7 @@ class RLBenchProcessor:
                 # 保存掩码图像
                 mask_attr = camera_mapping[camera_name]['mask']
                 mask_img = getattr(obs, mask_attr, None)
+                # print("mask_img.shape",mask_img.shape)
 
                 if mask_img is not None:
                     mask_path = episode_folder.joinpath(f"{camera_name}_mask", f"{i}.png")
@@ -280,7 +289,7 @@ class RLBenchProcessor:
         import gc  # 导入垃圾回收模块
 
         # 创建保存路径
-        task_path = os.path.join(self.save_path_head, self.task.get_name())
+        task_path = os.path.join(self.save_path_head, self.taskname)
 
         if self.save_path_end == "":
             now_time = datetime.datetime.now()

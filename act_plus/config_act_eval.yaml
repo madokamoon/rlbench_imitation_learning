@@ -2,9 +2,9 @@
 save_path_head: 'data'
 save_path_end: ''
 # 任务名称
-taskclassname: 'PutRubbishInBin'
+taskclassname: 'PickAndLift'
 # 演示数量
-num_demos: 10
+num_demos: 50
 # 图像尺寸
 image:
   width: 640
@@ -25,12 +25,12 @@ max_steps: 1000
 # ACT模型配置
 act_policy:
   'eval': true
-  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demos"
+  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demos8"
   "policy_class": "ACT"
   "onscreen_render": false
   "task_name": "pick_and_lift"
-  "batch_size": 2
-  'num_steps': 2000
+  "batch_size": 8
+  'num_steps': 10000
   'eval_every': 500
   'validate_every': 500
   'save_every': 500
@@ -52,7 +52,7 @@ act_policy:
   'prediction_len': None
     # 原文件 config
   'seed': 0
-  'temporal_agg': false
+  'temporal_agg': true
   'load_pretrain': false
 
 

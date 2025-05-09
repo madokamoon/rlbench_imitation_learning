@@ -28,6 +28,8 @@ cd act_plus/act-plus-plus/detr/
 pip install -e .
 
 
+
+
 # 安装以下内容以运行act-plus中的 Diffusion Policy 但是安装后 numpy 版本冲突 暂不安装
 # git clone https://githubfast.com/ARISE-Initiative/robomimic --recurse-submodules
 # git checkout r2d2
@@ -94,3 +96,11 @@ python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir tr
 
 
 
+## 常用指令
+
+```bash
+# 复制训练数据
+scp -r -P 2122 ~/python/rlbench_imitation_learning/data/pick_and_lift/50demos_hdf5 haoyue@service.qich.top:/home/hddData/haoyue/rlbench_imitation_learning/data/pick_and_lift
+# 复制训练结果
+scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demos8 ~/python/rlbench_imitation_learning/act_plus/training/pick_and_lift
+```

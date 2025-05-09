@@ -123,6 +123,9 @@ This application failed to start because no Qt platform plugin could be initiali
 ```
 pip uninstall opencv-python
 pip install opencv-python-headless
+
+pip uninstall opencv-python-headless
+pip install opencv-python
 ```
 
 # ACT
