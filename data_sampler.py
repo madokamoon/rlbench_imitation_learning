@@ -45,7 +45,6 @@ class RLBenchProcessor:
         # 确定运行模式 (采样 or 反应)
         self.reaction_mode = self.config.get('reaction', False)
         if self.reaction_mode:
-
             self.data_path = self.config['data_path']
 
         # 初始化环境和任务相关变量

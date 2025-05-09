@@ -2,7 +2,7 @@
 save_path_head: 'data'
 save_path_end: ''
 # 任务名称
-taskclassname: 'PickAndLift'
+taskname: 'PickAndLift'
 # 演示数量
 num_demos: 50
 # 图像尺寸
