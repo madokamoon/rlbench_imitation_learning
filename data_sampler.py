@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import h5py
 from pprint import pprint
 import yaml
 import importlib
@@ -9,14 +8,14 @@ import pathlib
 from PIL import Image
 import time, datetime
 from tqdm import tqdm 
-from pyrep.const import RenderMode
 
-# 导入RLBench相关模块
+
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
 from rlbench.action_modes.gripper_action_modes import GripperJointPosition
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
+from act_plus.act_policy_wrapper import ACTPolicyWrapper
 
 
 class RLBenchProcessor:
@@ -43,9 +42,13 @@ class RLBenchProcessor:
         self.camera_names = self.config['cameras']
         
         # 确定运行模式 (采样 or 反应)
-        self.reaction_mode = self.config.get('reaction', False)
-        if self.reaction_mode:
+        self.mode = self.config.get('mode', 0)
+        print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
+        if self.mode == 1:
             self.data_path = self.config['data_path']
+        elif self.mode == 2:
+            self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
+
 
         # 初始化环境和任务相关变量
         self.env = None
@@ -85,12 +88,10 @@ class RLBenchProcessor:
         for camera_name in self.camera_names:
             if camera_name in cameras_dict:
                 cameras_dict[camera_name].rgb = True
-                # 在数据采样模式下启用深度和掩码
-                if not self.reaction_mode:
-                    cameras_dict[camera_name].depth = True
-                    cameras_dict[camera_name].mask = True
-                    cameras_dict[camera_name].depth_in_meters = True  # 将深度存储为 0-1 归一化值
-                    cameras_dict[camera_name].masks_as_one_channel = True  # 将掩码存储为单通道图像
+                cameras_dict[camera_name].depth = True
+                cameras_dict[camera_name].mask = True
+                cameras_dict[camera_name].depth_in_meters = True  # 将深度存储为 0-1 归一化值
+                cameras_dict[camera_name].masks_as_one_channel = True  # 将掩码存储为单通道图像
                 cameras_dict[camera_name].image_size = (self.image_width, self.image_height)
 
         # 设置其他观测参数
@@ -125,13 +126,13 @@ class RLBenchProcessor:
         print("设置RLBench环境...")
         
         # 根据模式选择不同的控制方式
-        if self.reaction_mode:
+        if self.mode == 1 or self.mode == 2:
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
             print("使用末端位姿控制模式进行轨迹执行")
-        else:
+        elif self.mode == 0:
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
@@ -384,6 +385,159 @@ class RLBenchProcessor:
         # 等待一段时间，观察最终状态
         time.sleep(1)
 
+    def eval_process_observation(self, obs):
+
+        # 提取图像数据
+        imgdata = {}
+
+
+        # 使用字典映射相机属性名到观测对象的属性
+        camera_mapping = {
+            'front_camera': {
+                'rgb': 'front_rgb',
+                'depth': 'front_depth',
+                'mask': 'front_mask'
+            },
+            'wrist_camera': {
+                'rgb': 'wrist_rgb',
+                'depth': 'wrist_depth',
+                'mask': 'wrist_mask'
+            },
+            'left_shoulder_camera': {
+                'rgb': 'left_shoulder_rgb',
+                'depth': 'left_shoulder_depth',
+                'mask': 'left_shoulder_mask'
+            },
+            'right_shoulder_camera': {
+                'rgb': 'right_shoulder_rgb',
+                'depth': 'right_shoulder_depth',
+                'mask': 'right_shoulder_mask'
+            },
+            'overhead_camera': {
+                'rgb': 'overhead_rgb',
+                'depth': 'overhead_depth',
+                'mask': 'overhead_mask'
+            }
+        }
+
+        # 遍历所有相机
+        for camera_name in self.camera_names:
+            if camera_name not in camera_mapping:
+                continue
+
+            # 保存RGB图像
+            rgb_attr = camera_mapping[camera_name]['rgb']
+            rgb_img = getattr(obs, rgb_attr, None)
+            imgdata[camera_name] = rgb_img
+
+            # 保存掩码图像
+            mask_attr = camera_mapping[camera_name]['mask']
+            mask_img = getattr(obs, mask_attr, None)
+            imgdata[f"{camera_name}_mask"] = mask_img
+
+            # 处理掩码图像
+            # 创建空白RGB图像
+            mask_array = mask_img
+            rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+            
+            # 根据灰度值设置不同的RGB值
+            rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
+            rgb_array[mask_array == 84, 1] = 255
+            rgb_array[mask_array == 83, 2] = 255
+
+            imgdata[f"{camera_name}_mask_rgb"] = rgb_array
+
+
+        import copy
+        # 提取机器人状态
+        robot_state = list(obs.joint_positions)  # 关节位置
+        robot_state.append(float(1 - obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
+        robot_state = list(copy.deepcopy(obs.gripper_pose))  # 关节位置
+        robot_state.append(copy.deepcopy(obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
+
+        return imgdata, robot_state
+
+    def act_eval(self, max_steps=1000):
+        """
+        执行指定任务
+    
+        Args:
+            max_steps: 最大执行步数
+
+        Returns:
+            success: 任务是否成功完成
+        """
+        try:
+            # 重置任务获取初始观察
+            descriptions, obs = self.task.reset()
+            print(f"任务描述: {descriptions}")
+            # 执行控制循环
+            success = False
+            for step in tqdm(range(max_steps), desc="任务执行"):
+                # 处理观察获取图像和状态
+                imgdata, robot_state = self.eval_process_observation(obs)
+
+                # 使用ACT模型获取动作
+                actaction = self.act_policy.get_actions(imgdata, robot_state)
+
+                # 模型输出转换为末端位姿控制
+                # 模型输出的前7个值作为位置和四元数 [x, y, z, qx, qy, qz, qw]
+                end_effector_pose = actaction[0:7].copy()  # 避免原地修改 actaction
+
+                # 单位化四元数
+                quat = end_effector_pose[3:7]
+                norm = np.linalg.norm(quat)
+                if norm < 1e-6:
+                    # 默认使用单位四元数，避免除以零
+                    quat = np.array([0.0, 0.0, 0.0, 1.0])
+                else:
+                    quat = quat / norm
+                end_effector_pose[3:7] = quat
+
+
+                # 夹爪控制 - 从二值转换为连续值
+                gripper_value = actaction[7]
+
+                # 将夹爪值转换为关节位置 (0-0.04范围)
+                # 如果模型输出是二值的，大于0.5表示关闭(接近0.04)，小于0.5表示打开(接近0)
+                gripper_joint_position = 0.04 * float(gripper_value > 0.5)
+
+                # 执行动作
+                try:
+                    # 合并末端位姿和夹爪关节位置
+                    action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
+                    obs, reward, terminate = self.task.step(action)
+
+                    # 检查任务是否成功完成
+                    if reward == 1.0:
+                        print("\n🎉 任务执行成功!")
+                        success = True
+                        break
+
+                    if terminate:
+                        print("\n❌ 任务被终止")
+                        break
+
+                except Exception as e:
+                    print(f"\n执行动作时发生错误: {e}")
+                    break
+
+            print(f"\n任务执行结束. {'成功' if success else '未成功'}")
+            return success
+
+        except Exception as e:
+            print(f"任务执行过程中发生错误: {e}")
+            return False
+
+        finally:
+            # 关闭环境
+            if self.env is not None:
+                self.env.shutdown()
+                print("RLBench环境已关闭")
+
+
+
+
     def process_all_epochs(self):
         """处理所有的epoch（遍历数据文件夹中的所有子文件夹）"""
         print(f"处理来自路径的所有轨迹: {self.data_path}")
@@ -428,12 +582,15 @@ class RLBenchProcessor:
             self.setup_environment()
             self.load_task()
             
-            if self.reaction_mode:
-                print("以轨迹执行模式运行...")
+            if self.mode == 1:
+                print("以轨迹复现模式运行...")
                 self.process_all_epochs()
-            else:
+            elif self.mode == 0:
                 print("以数据采样模式运行...")
                 self.collect_and_save_demos()
+            elif self.mode == 2:
+                print("以评估模式运行...")
+                self.act_eval()
                 
         finally:
             if self.env is not None:

@@ -26,33 +26,28 @@ class RLBenchACTController:
     使用ACT策略控制RLBench环境中机器人的控制器类
     """
     
-    def __init__(self, config_path='data_sampler.yaml'):
+    def __init__(self, act_config_path):
         """
         初始化控制器
         
         Args:
-            config_path: 配置文件路径
+            act_config_path: ACT配置文件路径
         """
-        # 加载配置
-
-        with open(config_path, 'r') as f:
-            self.config = yaml.safe_load(f)
+        # 加载ACT配置
+        with open(act_config_path, 'r') as f:
+            act_config = yaml.safe_load(f)
             
-        # 从配置中获取参数
-        self.taskname = self.config.get('taskname')
-        self.max_steps = self.config.get('max_steps', 1000)
-        self.image_width = self.config['image']['width']
-        self.image_height = self.config['image']['height']
-        self.camera_names = self.config['cameras']
-        
         # 初始化ACT策略封装
-        self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
+        self.act_policy = ACTPolicyWrapper(act_config.get('act_policy'))
         
         # 存储环境和任务相关变量
         self.env = None
         self.task = None
+        self.camera_names = act_config.get('cameras')
         # 移除特定机器人设置，使用默认设置
         self.robot_setup = None
+        self.image_width = act_config.get('image').get('width')
+        self.image_height = act_config.get('image').get('height')
         
         # 用于保存关节位置数据的字典
         self.joint_data = {
@@ -116,14 +111,6 @@ class RLBenchACTController:
         self.env.launch()
         print("RLBench环境已启动")
     
-    def task_file_to_task_class(self, task_file):
-        """将任务文件名转换为任务类"""
-        class_name = ''.join([w[0].upper() + w[1:] for w in task_file.split('_')])
-        mod = importlib.import_module("rlbench.tasks.%s" % task_file)
-        mod = importlib.reload(mod)
-        task_class = getattr(mod, class_name)
-        return task_class, class_name
-    
     def load_task(self, task_name):
         """
         加载指定的任务
@@ -132,9 +119,10 @@ class RLBenchACTController:
             task_name: 任务类名称
         """
         try:
-            task_class, class_name = self.task_file_to_task_class(task_name)
+            module = importlib.import_module('rlbench.tasks')
+            task_class = getattr(module, task_name)
             self.task = self.env.get_task(task_class)
-            print(f"已加载任务: {task_name} (类名: {class_name})")
+            print(f"已加载任务: {task_name}")
             return True
         except (ImportError, AttributeError) as e:
             print(f"加载任务失败: {e}")
@@ -153,23 +141,20 @@ class RLBenchACTController:
         """
         # 提取图像数据
         imgdata = {}
-        
-        # 使用字典映射相机属性名到观测对象的属性
-        camera_mapping = {
-            'wrist_camera': 'wrist_rgb',
-            'front_camera': 'front_rgb',
-            'left_shoulder_camera': 'left_shoulder_rgb',
-            'right_shoulder_camera': 'right_shoulder_rgb',
-            'overhead_camera': 'overhead_rgb'
-        }
-        
-        # 遍历所有相机
-        for camera_name in self.camera_names:
-            if camera_name in camera_mapping:
-                rgb_attr = camera_mapping[camera_name]
-                rgb_img = getattr(obs, rgb_attr, None)
-                if rgb_img is not None:
-                    imgdata[camera_name] = rgb_img
+        if hasattr(obs, 'wrist_rgb') and obs.wrist_rgb is not None and 'wrist_camera' in self.camera_names:
+            imgdata['wrist_camera'] = obs.wrist_rgb
+            
+        if hasattr(obs, 'front_rgb') and obs.front_rgb is not None and 'front_camera' in self.camera_names:
+            imgdata['front_camera'] = obs.front_rgb
+            
+        if hasattr(obs, 'left_shoulder_rgb') and obs.left_shoulder_rgb is not None and 'left_shoulder_camera' in self.camera_names:
+            imgdata['left_shoulder_camera'] = obs.left_shoulder_rgb
+            
+        if hasattr(obs, 'right_shoulder_rgb') and obs.right_shoulder_rgb is not None and 'right_shoulder_camera' in self.camera_names:
+            imgdata['right_shoulder_camera'] = obs.right_shoulder_rgb
+            
+        if hasattr(obs, 'overhead_rgb') and obs.overhead_rgb is not None and 'overhead_camera' in self.camera_names:
+            imgdata['overhead_camera'] = obs.overhead_rgb
         
         import copy
         # 提取机器人状态
@@ -178,25 +163,25 @@ class RLBenchACTController:
         
         return imgdata, robot_state
     
-    def run_task(self, max_steps=None):
+
+
+    def run_task(self, task_name, max_steps=1000):
         """
         执行指定任务
         
         Args:
+            task_name: 要执行的任务名称
             max_steps: 最大执行步数
             
         Returns:
             success: 任务是否成功完成
         """
-        if max_steps is None:
-            max_steps = self.max_steps
-            
         try:
             # 设置环境
             self.setup_environment()
             
             # 加载任务
-            if not self.load_task(self.taskname):
+            if not self.load_task(task_name):
                 return False
             
             # 重置任务获取初始观察
@@ -225,6 +210,7 @@ class RLBenchACTController:
                 else:
                     quat = quat / norm
                 end_effector_pose[3:7] = quat
+
 
                 # 夹爪控制 - 从二值转换为连续值
                 gripper_value = actaction[7]
@@ -282,19 +268,33 @@ class RLBenchACTController:
 
 def main():
     """主函数，从配置文件加载所有参数"""
+
     rootpath = pathlib.Path(__file__).parent
-    default_config = rootpath.joinpath('data_sampler.yaml')
+    file_yaml = rootpath.joinpath('config_act_eval.yaml') 
     
     parser = argparse.ArgumentParser(description='ACT RLBench控制器')
-    parser.add_argument('--config', type=str, default=default_config,
-                        help='配置文件路径')
+    parser.add_argument('--config', type=str, default=file_yaml,
+                        help='ACT配置文件路径')
     args = parser.parse_args()
+    
+    # 从配置文件读取所有参数
+    with open(args.config, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # 从配置文件读取任务名称和最大步数
+    task_name = config.get('taskclassname', 'OpenDrawer')
+    max_steps = config.get('max_steps', 1000)
+    
+    print(f"从配置文件加载任务: {task_name}")
     
     # 创建控制器
     controller = RLBenchACTController(args.config)
     
     # 执行任务
-    success = controller.run_task()
+    success = controller.run_task(
+        task_name=task_name,
+        max_steps=max_steps
+    )
     
     # 清理内存
     controller.cleanup_memory()

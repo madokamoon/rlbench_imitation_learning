@@ -10,9 +10,9 @@ import pickle
 from einops import rearrange
 import copy
 # ACT模块
-from act_plus_plus.utils import set_seed
-from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
-from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
+from act_plus.act_plus_plus.utils import set_seed
+from act_plus.act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
+from act_plus.act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
 
 
 class ACTPolicyWrapper:
@@ -77,10 +77,10 @@ class ACTPolicyWrapper:
 
         is_sim = task_name[:4] == 'sim_'
         if is_sim or task_name == 'all':
-            from act_plus_plus.constants import SIM_TASK_CONFIGS
+            from act_plus.act_plus_plus.constants import SIM_TASK_CONFIGS
             task_config = SIM_TASK_CONFIGS[task_name]
         else:
-            from act_plus_plus.constants import TASK_CONFIGS
+            from act_plus.act_plus_plus.constants import TASK_CONFIGS
             task_config = TASK_CONFIGS[task_name]
             task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
 
@@ -239,7 +239,8 @@ class ACTPolicyWrapper:
         self.loading_status = loading_status
         self.temporal_agg = temporal_agg
         self.query_frequency = query_frequency
-
+        self.camera_names = camera_names
+        print(f"ACTPolicy相机名称: {self.camera_names}")
         self.step = 0
 
         print("ACT模型加载完成")
@@ -260,7 +261,9 @@ class ACTPolicyWrapper:
     def preprocess_images(self, imgdata):
         """预处理图像数据为模型输入格式"""
         curr_images = []
-        camera_ids = list(imgdata.keys())
+        # camera_ids = list(imgdata.keys())
+        camera_ids = self.camera_names 
+        print(f"相机ID: {camera_ids}")
         for cam_id in camera_ids:
             pil_img = Image.fromarray(imgdata[cam_id])
             resized_img = np.array(pil_img.resize((640, 480), Image.BILINEAR))
@@ -302,10 +305,10 @@ class ACTPolicyWrapper:
                 self.all_actions = self.policy(qpos, curr_image)
                 # self.all_actions = []
                 # self.all_actions = copy.deepcopy(self.policy(qpos, curr_image))
-                print(self.query_frequency,'推理')
-                print(self.all_actions.shape)
-                print(qpos)
-                print(self.all_actions[:,0:10,0:8])
+                print(self.query_frequency,'次一推理')
+                # print(self.all_actions.shape)
+                # print(qpos)
+                # print(self.all_actions[:,0:10,0:8])
 
 
             if self.temporal_agg:

@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 import torch
 import numpy as np
 # from detr.main import build_ACT_model_and_optimizer, build_CNNMLP_model_and_optimizer
-from act_plus_plus.detr.main import build_ACT_model_and_optimizer, build_CNNMLP_model_and_optimizer
+from act_plus.act_plus_plus.detr.main import build_ACT_model_and_optimizer, build_CNNMLP_model_and_optimizer
 import IPython
 e = IPython.embed
 
