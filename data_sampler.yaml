@@ -1,3 +1,6 @@
+
+
+
 # 0 采样 1 重现 2 评估
 mode: 2  
 
@@ -5,10 +8,10 @@ mode: 2
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
 save_path_head: 'data'
 taskname: 'pick_and_lift'
-save_path_end: '1demos'
+save_path_end: '30static'
 
 # 演示数量
-num_demos: 1
+num_demos: 30
 # 图像尺寸
 image:
   width: 640
@@ -24,12 +27,17 @@ cameras:
 
 
 # 1 重现
-data_path: &raw_data_path 'data/pick_and_lift/1demos'
+data_path: &raw_data_path 'data/pick_and_lift/30static'
+
+# -----------data_proccess.py------------------
+src_path: *raw_data_path
+
 
 # 2 评估
 act_policy:
   'eval': true
-  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/act_plus/training/pick_and_lift/50demosmask"
+  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/training/pick_and_lift/30static_4_4000"
+  'ckpt_name': 'policy_best.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false
   "task_name": "pick_and_lift"
@@ -61,5 +69,3 @@ act_policy:
 
 
 
-# -----------data_proccess.py------------------
-src_path: *raw_data_path

@@ -91,46 +91,62 @@ def calculate_mutual_information_sequence(image_folder):
     return mi_values, frame_pairs
 
 def main():
-    # 指定图片目录
-    image_folder = "/home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/50demos/12/front_camera_mask_rgb"
+    # 指定根目录
+    root_folder = "/home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/50demos/12"
     
-    # 计算互信息序列
-    mi_values, frame_pairs = calculate_mutual_information_sequence(image_folder)
+    # 获取当前脚本所在目录，用于保存图表
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    if mi_values:
-        # 打印结果
-        print("\n互信息计算结果:")
-        for i, (mi, pair) in enumerate(zip(mi_values, frame_pairs)):
-            print(f"帧对 {i+1}: {pair} - 互信息: {mi:.6f}")
+    # 获取根目录下的所有子目录
+    camera_dirs = [d for d in os.listdir(root_folder) if os.path.isdir(os.path.join(root_folder, d))]
+    
+    if not camera_dirs:
+        print(f"在 {root_folder} 下未找到子目录")
+        return
+    
+    print(f"找到 {len(camera_dirs)} 个子目录，开始处理...")
+    
+    for camera_dir in camera_dirs:
+        image_folder = os.path.join(root_folder, camera_dir)
+        print(f"\n处理目录: {image_folder}")
         
-        # 绘制结果图表
-        plt.figure(figsize=(12, 6))
-        plt.plot(range(1, len(mi_values) + 1), mi_values, 'b-o', markersize=4)
-        plt.grid(True)
-        plt.title('相邻帧互信息变化')
-        plt.xlabel('帧对序号')
-        plt.ylabel('互信息值')
-        plt.tight_layout()
+        # 检查目录中是否有PNG图片
+        image_files = [f for f in os.listdir(image_folder) if f.endswith('.png')]
+        if not image_files:
+            print(f"目录 {camera_dir} 中未找到PNG图片，跳过")
+            continue
         
-        # 保存图表
-        output_path = os.path.join(os.path.dirname(image_folder), "mutual_information_plot.png")
-        plt.savefig(output_path)
-        print(f"\n图表已保存至: {output_path}")
+        # 计算互信息序列
+        mi_values, frame_pairs = calculate_mutual_information_sequence(image_folder)
         
-        # 计算统计信息
-        avg_mi = np.mean(mi_values)
-        std_mi = np.std(mi_values)
-        min_mi = np.min(mi_values)
-        max_mi = np.max(mi_values)
-        
-        print(f"\n统计信息:")
-        print(f"平均互信息: {avg_mi:.6f}")
-        print(f"标准差: {std_mi:.6f}")
-        print(f"最小值: {min_mi:.6f}")
-        print(f"最大值: {max_mi:.6f}")
-        
-        # 显示图表
-        plt.show()
+        if mi_values:
+            # 绘制结果图表
+            plt.figure(figsize=(12, 6))
+            plt.plot(range(1, len(mi_values) + 1), mi_values, 'b-o', markersize=4)
+            plt.grid(True)
+            plt.title(f'相邻帧互信息变化 - {camera_dir}')
+            plt.xlabel('帧对序号')
+            plt.ylabel('互信息值')
+            plt.tight_layout()
+            
+            # 保存图表到脚本所在目录
+            output_path = os.path.join(script_dir, f"mutual_information_{camera_dir}.png")
+            plt.savefig(output_path)
+            print(f"图表已保存至: {output_path}")
+            
+            # 计算统计信息
+            avg_mi = np.mean(mi_values)
+            std_mi = np.std(mi_values)
+            min_mi = np.min(mi_values)
+            max_mi = np.max(mi_values)
+            
+            print(f"统计信息:")
+            print(f"平均互信息: {avg_mi:.6f}")
+            print(f"标准差: {std_mi:.6f}")
+            print(f"最小值: {min_mi:.6f}")
+            print(f"最大值: {max_mi:.6f}")
+            
+            plt.close()  # 关闭图表以释放内存
 
 if __name__ == "__main__":
     main()

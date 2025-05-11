@@ -8,7 +8,8 @@ import pathlib
 from PIL import Image
 import time, datetime
 from tqdm import tqdm 
-
+import random
+import torch
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -40,6 +41,7 @@ class RLBenchProcessor:
         self.image_width = self.config['image']['width']
         self.image_height = self.config['image']['height']
         self.camera_names = self.config['cameras']
+
         
         # 确定运行模式 (采样 or 反应)
         self.mode = self.config.get('mode', 0)
@@ -144,7 +146,8 @@ class RLBenchProcessor:
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=False,
-)
+            # static_positions=True,
+        )
             
         self.env.launch()
         print("环境启动成功")
@@ -273,9 +276,25 @@ class RLBenchProcessor:
                 # print("mask_img.shape",mask_img.shape)
 
                 if mask_img is not None:
+
+
+                    # 处理掩码图像
+                    # 创建空白RGB图像
+                    mask_array = mask_img
+                    rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+                    
+                    # 根据灰度值设置不同的RGB值
+                    rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
+                    rgb_array[mask_array == 84, 1] = 255
+                    rgb_array[mask_array == 83, 2] = 255
+
                     mask_path = episode_folder.joinpath(f"{camera_name}_mask", f"{i}.png")
-                    mask_image = np.clip(mask_img, 0, 255).astype(np.uint8)
+                    mask_image = np.clip(rgb_array, 0, 255).astype(np.uint8)
                     Image.fromarray(mask_image).save(str(mask_path))
+
+
+
+
         
         # 保存状态数据到JSON文件
         state_json_path = episode_folder.joinpath("state.json")
@@ -433,7 +452,6 @@ class RLBenchProcessor:
             # 保存掩码图像
             mask_attr = camera_mapping[camera_name]['mask']
             mask_img = getattr(obs, mask_attr, None)
-            imgdata[f"{camera_name}_mask"] = mask_img
 
             # 处理掩码图像
             # 创建空白RGB图像
@@ -445,7 +463,7 @@ class RLBenchProcessor:
             rgb_array[mask_array == 84, 1] = 255
             rgb_array[mask_array == 83, 2] = 255
 
-            imgdata[f"{camera_name}_mask_rgb"] = rgb_array
+            imgdata[f"{camera_name}_mask"] = rgb_array
 
 
         import copy
@@ -457,72 +475,86 @@ class RLBenchProcessor:
 
         return imgdata, robot_state
 
-    def act_eval(self, max_steps=1000):
+    def act_eval(self, max_steps=250, max_attempts=5):
         """
-        执行指定任务
-    
+        执行指定任务，失败时自动重试
+        
         Args:
-            max_steps: 最大执行步数
+            max_steps: 每次尝试的最大执行步数
+            max_attempts: 最大尝试次数
 
         Returns:
             success: 任务是否成功完成
         """
+        success = False
+        attempt = 0
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         try:
-            # 重置任务获取初始观察
-            descriptions, obs = self.task.reset()
-            print(f"任务描述: {descriptions}")
-            # 执行控制循环
-            success = False
-            for step in tqdm(range(max_steps), desc="任务执行"):
-                # 处理观察获取图像和状态
-                imgdata, robot_state = self.eval_process_observation(obs)
+            while not success and attempt < max_attempts:
+                attempt += 1
+                print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
+                
+                # 重置任务获取初始观察
 
-                # 使用ACT模型获取动作
-                actaction = self.act_policy.get_actions(imgdata, robot_state)
+                descriptions, obs = self.task.reset()
+                self.act_policy.reset()
+                print(f"任务描述: {descriptions}")
+                
+                # 执行控制循环
+                for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
+                    # 处理观察获取图像和状态
+                    imgdata, robot_state = self.eval_process_observation(obs)
+                    print(f"机器人状态: {robot_state}")
 
-                # 模型输出转换为末端位姿控制
-                # 模型输出的前7个值作为位置和四元数 [x, y, z, qx, qy, qz, qw]
-                end_effector_pose = actaction[0:7].copy()  # 避免原地修改 actaction
+                    # 使用ACT模型获取动作
+                    actaction = self.act_policy.get_actions(imgdata, robot_state)
 
-                # 单位化四元数
-                quat = end_effector_pose[3:7]
-                norm = np.linalg.norm(quat)
-                if norm < 1e-6:
-                    # 默认使用单位四元数，避免除以零
-                    quat = np.array([0.0, 0.0, 0.0, 1.0])
-                else:
-                    quat = quat / norm
-                end_effector_pose[3:7] = quat
+                    # 模型输出转换为末端位姿控制
+                    # 模型输出的前7个值作为位置和四元数 [x, y, z, qx, qy, qz, qw]
+                    end_effector_pose = actaction[0:7].copy()  # 避免原地修改 actaction
 
+                    # 单位化四元数
+                    quat = end_effector_pose[3:7]
+                    norm = np.linalg.norm(quat)
+                    if norm < 1e-6:
+                        # 默认使用单位四元数，避免除以零
+                        quat = np.array([0.0, 0.0, 0.0, 1.0])
+                    else:
+                        quat = quat / norm
+                    end_effector_pose[3:7] = quat
 
-                # 夹爪控制 - 从二值转换为连续值
-                gripper_value = actaction[7]
+                    # 夹爪控制 - 从二值转换为连续值
+                    gripper_value = actaction[7]
 
-                # 将夹爪值转换为关节位置 (0-0.04范围)
-                # 如果模型输出是二值的，大于0.5表示关闭(接近0.04)，小于0.5表示打开(接近0)
-                gripper_joint_position = 0.04 * float(gripper_value > 0.5)
+                    # 将夹爪值转换为关节位置 (0-0.04范围)
+                    gripper_joint_position = 0.04 * float(gripper_value > 0.5)
 
-                # 执行动作
-                try:
-                    # 合并末端位姿和夹爪关节位置
-                    action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
-                    obs, reward, terminate = self.task.step(action)
+                    # 执行动作
+                    try:
+                        # 合并末端位姿和夹爪关节位置
+                        action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
+                        print(f"执行动作: {action}")
+                        obs, reward, terminate = self.task.step(action)
 
-                    # 检查任务是否成功完成
-                    if reward == 1.0:
-                        print("\n🎉 任务执行成功!")
-                        success = True
+                        # 检查任务是否成功完成
+                        if reward == 1.0:
+                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功!")
+                            success = True
+                            break
+
+                        if terminate:
+                            print(f"\n❌ 第 {attempt} 次尝试被终止")
+                            break
+
+                    except Exception as e:
+                        print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
                         break
-
-                    if terminate:
-                        print("\n❌ 任务被终止")
-                        break
-
-                except Exception as e:
-                    print(f"\n执行动作时发生错误: {e}")
-                    break
-
-            print(f"\n任务执行结束. {'成功' if success else '未成功'}")
+                
+                if not success and attempt < max_attempts:
+                    print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
+                    time.sleep(1)  # 短暂等待后重试
+            
+            print(f"\n任务执行结束. {'成功' if success else f'全部 {attempt} 次尝试均失败'}")
             return success
 
         except Exception as e:
@@ -530,8 +562,8 @@ class RLBenchProcessor:
             return False
 
         finally:
-            # 关闭环境
-            if self.env is not None:
+            # 只在所有尝试结束后关闭环境
+            if self.env is not None and attempt >= max_attempts or success:
                 self.env.shutdown()
                 print("RLBench环境已关闭")
 
@@ -600,6 +632,13 @@ class RLBenchProcessor:
 
 if __name__ == "__main__":
     # 创建并运行处理器
+
+    # 在程序开始处添加
+    seed = int(time.time()) # 使用当前时间作为种子
+    np.random.seed(seed)
+    random.seed(seed)
+    print(f"使用随机种子: {seed}")
+
     processor = RLBenchProcessor()
     processor.run()
 

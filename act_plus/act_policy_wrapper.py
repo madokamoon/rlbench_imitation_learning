@@ -1,5 +1,3 @@
-
-
 import os
 import time
 from PIL import Image
@@ -19,7 +17,7 @@ class ACTPolicyWrapper:
 
     def __init__(self, config):
 
-        set_seed(1)
+        set_seed(0)
 
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -59,7 +57,8 @@ class ACTPolicyWrapper:
             'seed': config['seed'],
             'temporal_agg': config['temporal_agg'],
             'load_pretrain': config['load_pretrain'],
-
+            # 我的参数
+            'ckpt_name': config['ckpt_name'],
         }
 
         is_eval = args['eval']
@@ -137,7 +136,7 @@ class ACTPolicyWrapper:
             'prediction_len': args['prediction_len'],
         }
 
-        config = {
+        evalconfig = {
             'num_steps': num_steps,
             'eval_every': eval_every,
             'validate_every': validate_every,
@@ -166,29 +165,29 @@ class ACTPolicyWrapper:
         expr_name = ckpt_dir.split('/')[-1]
         
         with open(config_path, 'wb') as f:
-            pickle.dump(config, f)
+            pickle.dump(evalconfig, f)
 
         # ----------------------------eval_bc 函数--------------------------------------------
         # ----------------------------eval_bc 函数--------------------------------------------
 
-        ckpt_name = 'policy_best.ckpt'
+        ckpt_name = args['ckpt_name']
         save_episode=True
         num_rollouts=10
 
         set_seed(1000)
-        ckpt_dir = config['ckpt_dir']
-        state_dim = config['state_dim']
-        real_robot = config['real_robot']
-        policy_class = config['policy_class']
-        onscreen_render = config['onscreen_render']
-        policy_config = config['policy_config']
-        camera_names = config['camera_names']
-        max_timesteps = config['episode_len']
-        task_name = config['task_name']
-        temporal_agg = config['temporal_agg']
+        ckpt_dir = evalconfig['ckpt_dir']
+        state_dim = evalconfig['state_dim']
+        real_robot = evalconfig['real_robot']
+        policy_class = evalconfig['policy_class']
+        onscreen_render = evalconfig['onscreen_render']
+        policy_config = evalconfig['policy_config']
+        camera_names = evalconfig['camera_names']
+        max_timesteps = evalconfig['episode_len']
+        task_name = evalconfig['task_name']
+        temporal_agg = evalconfig['temporal_agg']
         onscreen_cam = 'angle'
-        vq = config['policy_config']['vq']
-        actuator_config = config['actuator_config']
+        vq = evalconfig['policy_config']['vq']
+        actuator_config = evalconfig['actuator_config']
         use_actuator_net = actuator_config['actuator_network_dir'] is not None
 
         # load policy and stats
@@ -199,8 +198,8 @@ class ACTPolicyWrapper:
         policy.cuda()
         policy.eval()
         if vq:
-            vq_dim = config['policy_config']['vq_dim']
-            vq_class = config['policy_config']['vq_class']
+            vq_dim = evalconfig['policy_config']['vq_dim']
+            vq_class = evalconfig['policy_config']['vq_class']
             latent_model = Latent_Model_Transformer(vq_dim, vq_dim, vq_class)
             latent_model_ckpt_path = os.path.join(ckpt_dir, 'latent_model_last.ckpt')
             latent_model.deserialize(torch.load(latent_model_ckpt_path))
@@ -231,8 +230,9 @@ class ACTPolicyWrapper:
 
         if temporal_agg:
             # 修改维度
-            all_time_actions = torch.zeros([max_timesteps, max_timesteps+num_queries, 10]).cuda()
-            self.all_time_actions = all_time_actions
+            all_time_actions_zeros = torch.zeros([max_timesteps, max_timesteps+num_queries, 10]).cuda()
+            self.all_time_actions_zeros = all_time_actions_zeros
+            self.all_time_actions = all_time_actions_zeros
             
         # 直接创建策略实例
         self.policy = policy
@@ -263,12 +263,10 @@ class ACTPolicyWrapper:
         curr_images = []
         # camera_ids = list(imgdata.keys())
         camera_ids = self.camera_names 
-        print(f"相机ID: {camera_ids}")
         for cam_id in camera_ids:
             pil_img = Image.fromarray(imgdata[cam_id])
             resized_img = np.array(pil_img.resize((640, 480), Image.BILINEAR))
             curr_image = rearrange(resized_img, 'h w c -> c h w')
-            print(f"相机ID: {cam_id} 图像数据形状: {curr_image.shape}")
             curr_images.append(curr_image)
         curr_image = np.stack(curr_images, axis=0)
         curr_image = torch.from_numpy(curr_image / 255.0).float().cuda().unsqueeze(0)
@@ -303,8 +301,6 @@ class ACTPolicyWrapper:
 
             if self.step % self.query_frequency == 0:
                 self.all_actions = self.policy(qpos, curr_image)
-                # self.all_actions = []
-                # self.all_actions = copy.deepcopy(self.policy(qpos, curr_image))
                 print(self.query_frequency,'次一推理')
                 # print(self.all_actions.shape)
                 # print(qpos)
@@ -345,6 +341,19 @@ class ACTPolicyWrapper:
             self.step+=1
 
             return target_qpos
+
+    def reset(self):
+        """
+        重置模型状态到初始状态，用于任务重新执行时调用
+        """
+        print("重置ACT策略状态...")
+        # 重置步数计数器
+        self.step = 0
+        if self.temporal_agg:
+            self.all_time_actions = self.all_time_actions_zeros
+    
+        print("ACT策略状态已重置")
+        return True
 
 
 

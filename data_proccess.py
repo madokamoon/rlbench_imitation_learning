@@ -38,15 +38,14 @@ class RawToHDF5Converter:
             self.datas = {}
             
             self.camera_names = []
-            self.camera_names_depth = []
-            self.camera_names_mask = []
 
             for f in os.listdir(folder_path):
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
-                        self.camera_names_depth.append(f)
+                        pass
+                        # self.camera_names_depth.append(f)
                     elif f.endswith('mask'):
-                        self.camera_names_mask.append(f)
+                        self.camera_names.append(f)
                     elif f.endswith('camera'):
                         self.camera_names.append(f)
                         
@@ -54,7 +53,7 @@ class RawToHDF5Converter:
             # 处理深度摄像头图像
             # self.process_depth_images(folder_path)
             # 处理掩码摄像头图像
-            self.process_mask_images(folder_path)
+            # self.process_mask_images(folder_path)
 
             
             # 初始化数据字典
