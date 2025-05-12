@@ -107,6 +107,10 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 ```bash
 python data_sampler.py
 ```
+## 可视化
+```bash
+python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
+```
 
 
 ## 问题

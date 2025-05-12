@@ -46,6 +46,9 @@ pip install -e .
 cd act_plus
 python act_plus_plus/record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir data/sim_transfer_cube_scripted --num_episodes 10 --onscreen_render
 
+
+
+
 # 训练
 python act_plus_plus/imitate_episodes.py --task_name sim_transfer_cube_scripted --ckpt_dir training --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 2000
 ```
