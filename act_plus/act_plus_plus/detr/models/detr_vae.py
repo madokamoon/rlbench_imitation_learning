@@ -143,12 +143,13 @@ class DETRVAE(nn.Module):
 
         return latent_input, probs, binaries, mu, logvar
 
-    def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None):
+    def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None, view_weights=None):
         """
         qpos: batch, qpos_dim
         image: batch, num_cam, channel, height, width
         env_state: None
         actions: batch, seq, action_dim
+        view_weights: 各视角的权重，shape为[num_cameras]
         """
         latent_input, probs, binaries, mu, logvar = self.encode(qpos, actions, is_pad, vq_sample)
 
@@ -161,8 +162,20 @@ class DETRVAE(nn.Module):
                 features, pos = self.backbones[cam_id](image[:, cam_id])
                 features = features[0] # take the last layer feature
                 pos = pos[0]
-                all_cam_features.append(self.input_proj(features))
+                cam_features = self.input_proj(features)
+                
+                # 如果提供了视角权重，应用权重
+                if view_weights is not None:
+                    # 确保权重在GPU上且形状正确
+                    if isinstance(view_weights, list):
+                        weight = view_weights[cam_id]
+                    else:  # 假设是tensor
+                        weight = view_weights[cam_id].item() if view_weights.numel() > 1 else view_weights.item()
+                    cam_features = cam_features * weight
+                    
+                all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
+            
             # proprioception features
             proprio_input = self.input_proj_robot_state(qpos)
             # fold camera dimension into width dimension

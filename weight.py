@@ -67,6 +67,7 @@ def rgb_mutual_information(img1, img2, bins=256):
         mi_total += mutual_information(img1[:, :, c], img2[:, :, c], bins=bins)
     return mi_total / 3
 
+
 def calculate_change_weight(img1, img2, bins=256):
     """计算变化权重：1 - 互信息/最小熵"""
     # 计算两图像的熵
@@ -86,6 +87,13 @@ def calculate_change_weight(img1, img2, bins=256):
     
     # 确保权重在有效范围内
     return max(0.0, min(1.0, change_weight))
+
+
+
+
+
+
+
 
 def natural_sort_key(s):
     """用于自然排序的键函数，提取文件名中的数字"""

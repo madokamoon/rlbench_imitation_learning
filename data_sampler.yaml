@@ -36,7 +36,7 @@ src_path: *raw_data_path
 # 2 评估
 act_policy:
   'eval': true
-  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/training/pick_and_lift/30static_4_4000"
+  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/training/pick_and_lift/30static_4_4000_rbg"
   'ckpt_name': 'policy_best.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false
@@ -66,6 +66,15 @@ act_policy:
   'seed': 0
   'temporal_agg': true
   'load_pretrain': false
+    # task_config
+  'task_config':
+    'dataset_dir': 'data/pick_and_lift/30static_hdf5'
+    'episode_len': 250
+    'train_ratio': 0.95
+    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
+    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+  
 
 
 

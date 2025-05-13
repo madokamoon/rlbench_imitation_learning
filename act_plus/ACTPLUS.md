@@ -60,7 +60,7 @@ python act_plus_plus/imitate_episodes.py --task_name sim_transfer_cube_scripted 
 训练 pick_and_lift
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python act_plus/act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/30static_4_4000_mask --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
+CUDA_VISIBLE_DEVICES=0 python act_plus/act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/30static_4_4000_rbg --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
 
 ```
 

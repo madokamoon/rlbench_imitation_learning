@@ -16,7 +16,7 @@ from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPose
 from rlbench.action_modes.gripper_action_modes import GripperJointPosition
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
-from act_plus.act_policy_wrapper import ACTPolicyWrapper
+from act_policy_wrapper import ACTPolicyWrapper
 
 
 class RLBenchProcessor:
@@ -41,7 +41,7 @@ class RLBenchProcessor:
         self.image_width = self.config['image']['width']
         self.image_height = self.config['image']['height']
         self.camera_names = self.config['cameras']
-
+        self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
         
         # 确定运行模式 (采样 or 反应)
         self.mode = self.config.get('mode', 0)
@@ -486,19 +486,22 @@ class RLBenchProcessor:
         Returns:
             success: 任务是否成功完成
         """
+        from weight import calculate_change_weight  # 导入计算权重的函数
+        
         success = False
         attempt = 0
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         try:
             while not success and attempt < max_attempts:
                 attempt += 1
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
                 # 重置任务获取初始观察
-
                 descriptions, obs = self.task.reset()
                 self.act_policy.reset()
                 print(f"任务描述: {descriptions}")
+                
+                # 用于存储上一帧的图像
+                prev_images = None
                 
                 # 执行控制循环
                 for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
@@ -506,37 +509,63 @@ class RLBenchProcessor:
                     imgdata, robot_state = self.eval_process_observation(obs)
                     print(f"机器人状态: {robot_state}")
 
-                    # 使用ACT模型获取动作
-                    actaction = self.act_policy.get_actions(imgdata, robot_state)
+
+                    # 历史权重与当前权重的平滑融合
+                    # alpha = 0.7  # 平滑因子 暂时不用
+
+                    # 计算权重view_weights
+                    view_weights = []
+                    # if prev_images is not None:
+                    #     print("计算视角变化权重：")
+                    #     for cam_name in self.camera_names_forward:
+                    #         if cam_name in imgdata:
+                    #             curr_img = imgdata[f"{cam_name}_mask"]
+                    #             prev_img = prev_images[f"{cam_name}_mask"]
+                    #             # 计算变化权重
+                    #             weight = calculate_change_weight(prev_img, curr_img)
+                    #             view_weights.append(weight)
+                    #             print(f"  - {cam_name}: {weight:.4f}")
+                    
+                    # 如果有计算出权重，则使用它们；否则使用默认权重
+                    if view_weights and len(view_weights) == len(self.camera_names_forward):
+                        # 归一化权重，确保总和为相机数量（平均权重为1）
+                        total_weight = sum(view_weights)
+                        norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
+                        print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
+                        actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                    else:
+                        print("使用默认视角权重")
+                        actaction = self.act_policy.get_actions(imgdata, robot_state)
+
+                    # 保存当前帧作为下一次迭代的上一帧
+                    # prev_images = {}
+                    # for cam_name in self.camera_names_forward:
+                    #     if cam_name in imgdata:
+                    #         prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
 
                     # 模型输出转换为末端位姿控制
-                    # 模型输出的前7个值作为位置和四元数 [x, y, z, qx, qy, qz, qw]
-                    end_effector_pose = actaction[0:7].copy()  # 避免原地修改 actaction
-
+                    end_effector_pose = actaction[0:7].copy()
+                    
                     # 单位化四元数
                     quat = end_effector_pose[3:7]
                     norm = np.linalg.norm(quat)
                     if norm < 1e-6:
-                        # 默认使用单位四元数，避免除以零
                         quat = np.array([0.0, 0.0, 0.0, 1.0])
                     else:
                         quat = quat / norm
                     end_effector_pose[3:7] = quat
 
-                    # 夹爪控制 - 从二值转换为连续值
+                    # 夹爪控制
                     gripper_value = actaction[7]
-
-                    # 将夹爪值转换为关节位置 (0-0.04范围)
                     gripper_joint_position = 0.04 * float(gripper_value > 0.5)
 
                     # 执行动作
                     try:
-                        # 合并末端位姿和夹爪关节位置
                         action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
                         print(f"执行动作: {action}")
                         obs, reward, terminate = self.task.step(action)
 
-                        # 检查任务是否成功完成
+                        # 检查任务状态
                         if reward == 1.0:
                             print(f"\n🎉 第 {attempt} 次尝试任务执行成功!")
                             success = True
@@ -552,7 +581,7 @@ class RLBenchProcessor:
                 
                 if not success and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
-                    time.sleep(1)  # 短暂等待后重试
+                    time.sleep(1)
             
             print(f"\n任务执行结束. {'成功' if success else f'全部 {attempt} 次尝试均失败'}")
             return success

@@ -17,13 +17,13 @@ TASK_CONFIGS = {
         'train_ratio': 0.95,
         'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     },
-    'pick_and_lift':{
-        'dataset_dir': DATA_DIR + '/pick_and_lift/30static_hdf5',
-        'episode_len': 250,
-        'train_ratio': 0.95,
-        'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
-        # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
-    },
+    # 'pick_and_lift':{
+    #     'dataset_dir': DATA_DIR + '/pick_and_lift/30static_hdf5',
+    #     'episode_len': 250,
+    #     'train_ratio': 0.95,
+    #     'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    #     # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    # },
 }
 
 

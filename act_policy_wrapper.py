@@ -19,7 +19,6 @@ class ACTPolicyWrapper:
 
         set_seed(0)
 
-        self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用设备: {self.device}")
 
@@ -74,17 +73,19 @@ class ACTPolicyWrapper:
         save_every = args['save_every']
         resume_ckpt_path = args['resume_ckpt_path']
 
-        is_sim = task_name[:4] == 'sim_'
-        if is_sim or task_name == 'all':
-            from act_plus.act_plus_plus.constants import SIM_TASK_CONFIGS
-            task_config = SIM_TASK_CONFIGS[task_name]
-        else:
-            from act_plus.act_plus_plus.constants import TASK_CONFIGS
-            task_config = TASK_CONFIGS[task_name]
-            task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
+        # is_sim = task_name[:4] == 'sim_'
+        # if is_sim or task_name == 'all':
+        #     from act_plus.act_plus_plus.constants import SIM_TASK_CONFIGS
+        #     task_config = SIM_TASK_CONFIGS[task_name]
+        # else:
+        #     from act_plus.act_plus_plus.constants import TASK_CONFIGS
+        #     task_config = TASK_CONFIGS[task_name]
+        #     task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
+
+
+        task_config = config.get('task_config')
 
         dataset_dir = task_config['dataset_dir']
-        # num_episodes = task_config['num_episodes']
         episode_len = task_config['episode_len']
         camera_names = task_config['camera_names']
         stats_dir = task_config.get('stats_dir', None)
@@ -153,7 +154,7 @@ class ACTPolicyWrapper:
             'seed': args['seed'],
             'temporal_agg': args['temporal_agg'],
             'camera_names': camera_names,
-            'real_robot': not is_sim,
+            'real_robot': False,
             'load_pretrain': args['load_pretrain'],
             'actuator_config': actuator_config,
 
@@ -274,9 +275,14 @@ class ACTPolicyWrapper:
         return curr_image
     
 
-    def get_actions(self, imgdata, robot_state):
+    def get_actions(self, imgdata, robot_state, view_weights=None):
         """
         从当前状态和图像预测动作
+        
+        参数:
+            imgdata: 图像数据
+            robot_state: 机器人状态
+            view_weights: 各视角权重，shape为[num_cameras]，可选
         """
 
         with torch.inference_mode():
@@ -300,7 +306,7 @@ class ACTPolicyWrapper:
                 time1 = time.time()
 
             if self.step % self.query_frequency == 0:
-                self.all_actions = self.policy(qpos, curr_image)
+                self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
                 print(self.query_frequency,'次一推理')
                 # print(self.all_actions.shape)
                 # print(qpos)

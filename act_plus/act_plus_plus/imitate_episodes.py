@@ -61,11 +61,23 @@ def main(args):
         from constants import SIM_TASK_CONFIGS
         task_config = SIM_TASK_CONFIGS[task_name]
     else:
-        # act修改任务信息
-        # from aloha_scripts.constants import TASK_CONFIGS
-        from constants import TASK_CONFIGS
-        task_config = TASK_CONFIGS[task_name]
+        # 从data_sampler.yaml读取任务配置
+        import yaml
+        yaml_path = os.path.join(os.path.dirname(__file__), "../../data_sampler.yaml")
+        print(f"读取配置文件: {yaml_path}")
+        
+        with open(yaml_path, 'r') as f:
+            yaml_config = yaml.safe_load(f)
+        
+        if 'act_policy' in yaml_config and 'task_config' in yaml_config['act_policy']:
+            task_config = yaml_config['act_policy']['task_config']
+            print(f"成功加载任务配置: {task_name}")
+        else:
+            raise ValueError("在data_sampler.yaml中未找到act_policy.task_config配置")
+        
         task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
+
+    
 
         
     dataset_dir = task_config['dataset_dir']
@@ -573,7 +585,13 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
 def forward_pass(data, policy):
     # 前向传递函数
     image_data, qpos_data, action_data, is_pad = data
+    print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}')
+    print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}')
+
     image_data, qpos_data, action_data, is_pad = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda()
+
+
+
     return policy(qpos_data, image_data, action_data, is_pad) # TODO remove None
 
 
