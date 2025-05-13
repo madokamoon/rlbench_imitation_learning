@@ -63,7 +63,7 @@ def main(args):
     else:
         # 从data_sampler.yaml读取任务配置
         import yaml
-        yaml_path = os.path.join(os.path.dirname(__file__), "../../data_sampler.yaml")
+        yaml_path = os.path.join(os.path.dirname(__file__), "../data_sampler.yaml")
         print(f"读取配置文件: {yaml_path}")
         
         with open(yaml_path, 'r') as f:

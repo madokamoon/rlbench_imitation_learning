@@ -24,7 +24,7 @@ pip install ipython
 pip install typeguard pyyaml
 pip install wandb
 
-cd act_plus/act-plus-plus/detr/
+cd act-plus-plus/detr/
 pip install -e .
 
 
@@ -43,9 +43,7 @@ pip install -e .
 ```bash
 
 # 生成数据集
-cd act_plus
 python act_plus_plus/record_sim_episodes.py --task_name sim_transfer_cube_scripted --dataset_dir data/sim_transfer_cube_scripted --num_episodes 10 --onscreen_render
-
 
 
 
@@ -60,7 +58,7 @@ python act_plus_plus/imitate_episodes.py --task_name sim_transfer_cube_scripted 
 训练 pick_and_lift
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python act_plus/act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/30static_4_4000_rbg --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
+CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/30static_8_10000_rgb --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 8 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 10000
 
 ```
 

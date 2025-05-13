@@ -8,9 +8,9 @@ import pickle
 from einops import rearrange
 import copy
 # ACT模块
-from act_plus.act_plus_plus.utils import set_seed
-from act_plus.act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
-from act_plus.act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
+from act_plus_plus.utils import set_seed
+from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
+from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
 
 
 class ACTPolicyWrapper:
