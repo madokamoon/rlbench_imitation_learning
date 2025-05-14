@@ -513,6 +513,7 @@ class RLBenchProcessor:
                     # 历史权重与当前权重的平滑融合
                     # alpha = 0.7  # 平滑因子 暂时不用
 
+
                     # 计算权重view_weights
                     view_weights = []
                     # if prev_images is not None:

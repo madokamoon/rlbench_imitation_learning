@@ -17,7 +17,7 @@ class ACTPolicyWrapper:
 
     def __init__(self, config):
 
-        set_seed(0)
+        set_seed(1)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用设备: {self.device}")
@@ -264,6 +264,7 @@ class ACTPolicyWrapper:
         curr_images = []
         # camera_ids = list(imgdata.keys())
         camera_ids = self.camera_names 
+        print(f"preprocess_images相机ID: {camera_ids}")
         for cam_id in camera_ids:
             pil_img = Image.fromarray(imgdata[cam_id])
             resized_img = np.array(pil_img.resize((640, 480), Image.BILINEAR))

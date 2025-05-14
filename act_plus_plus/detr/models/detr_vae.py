@@ -164,6 +164,7 @@ class DETRVAE(nn.Module):
                 pos = pos[0]
                 cam_features = self.input_proj(features)
                 
+                # act修改权重
                 # 如果提供了视角权重，应用权重
                 if view_weights is not None:
                     # 确保权重在GPU上且形状正确

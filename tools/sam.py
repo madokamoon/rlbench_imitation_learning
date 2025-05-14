@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import time
 
 # 加载模型
-sam_checkpoint = "sam_vit_h_4b8939.pth"  # 你的权重路径
+sam_checkpoint = "sam_vit_h_4b8939.pth"  
 model_type = "vit_h"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
