@@ -69,11 +69,11 @@ act_policy:
   'load_pretrain': false
     # task_config
   'task_config':
-    'dataset_dir': 'data/pick_and_lift/30static_hdf5'
-    'episode_len': 250
+    'dataset_dir': 'data/pick_and_lift/100demos_hdf5'
+    'episode_len': 200
     # 'train_ratio': 0.95
-    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
-    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
+    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
     # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
   
 

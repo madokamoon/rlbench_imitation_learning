@@ -58,7 +58,7 @@ python act_plus_plus/imitate_episodes.py --task_name sim_transfer_cube_scripted 
 训练 pick_and_lift
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/111 --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 2 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 10000
+CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/100demos_hdf5_2_10000_rgb --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 2 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 10000
 
 ```
 
@@ -97,7 +97,7 @@ CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick
 
 ```bash
 # 复制训练数据
-scp -r -P 2122 ~/python/rlbench_imitation_learning/data/pick_and_lift/30static_hdf5/ haoyue@service.qich.top:/home/hddData/haoyue/rlbench_imitation_learning/data/pick_and_lift
+scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos_hdf5/ haoyue@100.100.3.3:/home/haoyue/code/rlbench_imitation_learning/data/pick_and_lift
 # 复制训练结果
 scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/training/pick_and_lift/50demosmask ~/python/rlbench_imitation_learning/training/pick_and_lift
 ```
