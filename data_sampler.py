@@ -128,13 +128,13 @@ class RLBenchProcessor:
         print("设置RLBench环境...")
         
         # 根据模式选择不同的控制方式
-        if self.mode == 1 or self.mode == 2:
+        if self.mode == 1 :
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
             print("使用末端位姿控制模式进行轨迹执行")
-        elif self.mode == 0:
+        elif self.mode == 0 or self.mode == 2:
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
@@ -475,7 +475,7 @@ class RLBenchProcessor:
 
         return imgdata, robot_state
 
-    def act_eval(self, max_steps=250, max_attempts=100):
+    def act_eval(self, max_steps=200, max_attempts=100):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -514,16 +514,16 @@ class RLBenchProcessor:
 
                     # 计算权重view_weights
                     view_weights = []
-                    if prev_images is not None:
-                        print("计算视角变化权重：")
-                        for cam_name in self.camera_names_forward:
-                            if cam_name in imgdata:
-                                curr_img = imgdata[f"{cam_name}_mask"]
-                                prev_img = prev_images[f"{cam_name}_mask"]
-                                # 计算变化权重
-                                weight = calculate_change_weight(prev_img, curr_img)
-                                view_weights.append(weight)
-                                print(f"  - {cam_name}: {weight:.4f}")
+                    # if prev_images is not None:
+                    #     print("计算视角变化权重：")
+                    #     for cam_name in self.camera_names_forward:
+                    #         if cam_name in imgdata:
+                    #             curr_img = imgdata[f"{cam_name}_mask"]
+                    #             prev_img = prev_images[f"{cam_name}_mask"]
+                    #             # 计算变化权重
+                    #             weight = calculate_change_weight(prev_img, curr_img)
+                    #             view_weights.append(weight)
+                    #             print(f"  - {cam_name}: {weight:.4f}")
                     
                     # 如果有计算出权重，则使用它们；否则使用默认权重
                     if view_weights and len(view_weights) == len(self.camera_names_forward):

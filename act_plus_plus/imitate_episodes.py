@@ -589,8 +589,10 @@ def forward_pass(data, policy):
     # print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}, {type(weight_data)}')
 
     image_data, qpos_data, action_data, is_pad, weight_data = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda(), weight_data.cuda()
-    print('forward pass weight_data',weight_data)
-    return policy(qpos_data, image_data, action_data, is_pad,weight_data) # TODO remove None
+    # print('forward pass weight_data',weight_data)
+    # return policy(qpos_data, image_data, action_data, is_pad,weight_data)    # TODO remove None
+
+    return policy(qpos_data, image_data, action_data, is_pad)
 
 
 def train_bc(train_dataloader, val_dataloader, config):

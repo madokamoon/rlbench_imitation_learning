@@ -61,13 +61,18 @@ class EpisodicDataset(torch.utils.data.Dataset):
                     base_action = preprocess_base_action(base_action)
                     action = np.concatenate([root['/action'][()], base_action], axis=-1)
                 else:  
-                    action = root['/action'][()]
+                    # action = root['/action'][()]
+                    # act修改hdf5数据读取
+                    action = root['/robot_joint_action'][()]
+
                     dummy_base_action = np.zeros([action.shape[0], 2])
                     action = np.concatenate([action, dummy_base_action], axis=-1)
                 original_action_shape = action.shape
                 episode_len = original_action_shape[0]
                 # get observation at start_ts only
-                qpos = root['/observations/qpos'][start_ts]
+                # qpos = root['/observations/qpos'][start_ts]
+                # act修改hdf5数据读取
+                qpos = root['/observations/robot_joint_state'][start_ts]
                 qvel = root['/observations/qvel'][start_ts]
                 image_dict = dict()
                 for cam_name in self.camera_names:

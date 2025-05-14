@@ -63,6 +63,10 @@ class RawToHDF5Converter:
             self.datas = {
                 '/observations/qpos': [],
                 '/action': [],
+                # 添加三个新的数据项
+                '/observations/robot_joint_state': [],
+                '/observations/robot_joint_vel': [],
+                '/robot_joint_action': [],
             }
             
             # 为每个摄像头创建数据项和权重项
@@ -106,6 +110,9 @@ class RawToHDF5Converter:
                 # 添加机器人状态和抓取状态
                 self.datas['/observations/qpos'].append(jsondata["robot_state"] + [jsondata['grasp_state'][0]])
                 self.datas['/action'].append(jsondata['robot_action'] + [jsondata['grasp_action'][0]])
+                self.datas['/observations/robot_joint_state'].append(jsondata["robot_joint_state"] + [jsondata['grasp_state'][0]])
+                self.datas['/observations/robot_joint_vel'].append(jsondata["robot_joint_vel"])
+                self.datas['/robot_joint_action'].append(jsondata["robot_joint_action"] + [jsondata['grasp_action'][0]]) 
                 
                 # 临时存储该帧所有摄像头的原始权重
                 frame_weights = {}
@@ -162,7 +169,7 @@ class RawToHDF5Converter:
                             # 如果总权重为零，所有mask摄像头权重设为1
                             for cam_name in mask_cams:
                                 self.datas[f'/observations/weight/{cam_name}'].append(1.0)
-    
+
                     # 处理camera摄像头的权重 - 全部设置为1
                     for cam_name in camera_cams:
                         self.datas[f'/observations/weight/{cam_name}'].append(1.0)
@@ -195,7 +202,6 @@ class RawToHDF5Converter:
                 _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), 
                                         dtype='uint8', chunks=(1, 480, 640, 3))
                 
-
             # 创建权重组
             weight = obs.create_group('weight')
             
@@ -203,15 +209,28 @@ class RawToHDF5Converter:
             for cam_name in self.camera_names:
                 _ = weight.create_dataset(cam_name, (max_timesteps,), dtype='float32')
         
-            
             # 修改维度
             qpos = obs.create_dataset('qpos', (max_timesteps, 8))
             qvel = obs.create_dataset('qvel', (max_timesteps, 8))
             action = root.create_dataset('action', (max_timesteps, 8))
             
+            # 创建三个新的数据集
+            if '/observations/robot_joint_state' in self.datas and self.datas['/observations/robot_joint_state']:
+                joint_dim = len(self.datas['/observations/robot_joint_state'][0])
+                robot_joint_state = obs.create_dataset('robot_joint_state', (max_timesteps, joint_dim))
+            
+            if '/observations/robot_joint_vel' in self.datas and self.datas['/observations/robot_joint_vel']:
+                joint_vel_dim = len(self.datas['/observations/robot_joint_vel'][0])
+                robot_joint_vel = obs.create_dataset('robot_joint_vel', (max_timesteps, joint_vel_dim))
+            
+            if '/robot_joint_action' in self.datas and self.datas['/robot_joint_action']:
+                joint_action_dim = len(self.datas['/robot_joint_action'][0])
+                robot_joint_action = root.create_dataset('robot_joint_action', (max_timesteps, joint_action_dim))
+            
             # 存入数据
             for name, array in self.datas.items():
-                root[name][...] = np.array(array)
+                if array:  # 只处理非空数据
+                    root[name][...] = np.array(array)
 
     def process_depth_images(self, folder_path):
         """
