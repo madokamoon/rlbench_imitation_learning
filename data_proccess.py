@@ -11,6 +11,8 @@ import h5py
 from PIL import Image
 import glob
 
+# 导入权重计算函数
+from weight import calculate_change_weight
 
 class RawToHDF5Converter:
     def __init__(self, input_path, output_path):
@@ -19,6 +21,7 @@ class RawToHDF5Converter:
         self.camera_names = []
         self.datas = {}
         self.record_path = ""
+        self.prev_frames = {}  # 存储前一帧的图像
         
     def convert(self):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -59,13 +62,16 @@ class RawToHDF5Converter:
             # 初始化数据字典
             self.datas = {
                 '/observations/qpos': [],
-                # '/observations/qvel': [],
                 '/action': [],
             }
             
-            # 为每个摄像头创建数据项
+            # 为每个摄像头创建数据项和权重项
             for cam_name in self.camera_names:
                 self.datas[f'/observations/images/{cam_name}'] = []
+                self.datas[f'/observations/weight/{cam_name}'] = []  # 初始化权重列表
+            
+            # 重置前一帧图像
+            self.prev_frames = {}
             
             # 读取状态文件
             json_path = os.path.join(folder_path, 'state.json')
@@ -90,7 +96,7 @@ class RawToHDF5Converter:
             
             print(f"处理 {frame_count} 帧数据...")
             
-            # 处理每一帧数据
+            # 在处理每一帧数据的循环中，修改权重计算部分
             for frame_idx_str in tqdm.tqdm(sorted(json_data.keys(), key=lambda x: int(x)), 
                                      desc=f"处理文件夹 {folder_name}", 
                                      total=frame_count):
@@ -100,6 +106,9 @@ class RawToHDF5Converter:
                 # 添加机器人状态和抓取状态
                 self.datas['/observations/qpos'].append(jsondata["robot_state"] + [jsondata['grasp_state'][0]])
                 self.datas['/action'].append(jsondata['robot_action'] + [jsondata['grasp_action'][0]])
+                
+                # 临时存储该帧所有摄像头的原始权重
+                frame_weights = {}
                 
                 # 处理每个摄像头的图像
                 for cam_name in self.camera_names:
@@ -113,12 +122,51 @@ class RawToHDF5Converter:
                     
                     # 检查图像尺寸，如果不是480x640就调整
                     if img.size != (640, 480):
-                        # print(f"调整图像尺寸从 {img.size} 到 (640, 480)",end='\r')
                         img = img.resize((640, 480))
                     
                     # 转换为numpy数组
                     img_array = np.array(img)
                     self.datas[f'/observations/images/{cam_name}'].append(img_array)
+                    
+                    # 计算权重（与前一帧比较）
+                    if frame_idx > 0 and cam_name in self.prev_frames:
+                        # 计算当前帧与前一帧的变化权重
+                        weight = calculate_change_weight(self.prev_frames[cam_name], img_array)
+                    else:
+                        # 第一帧或无前一帧数据时，设置默认权重1.0
+                        weight = 1.0
+                    
+                    # 暂存权重
+                    frame_weights[cam_name] = weight
+                    
+                    # 更新前一帧图像
+                    self.prev_frames[cam_name] = img_array.copy()
+                
+                # 归一化权重，确保所有摄像头的平均权重为1
+                if frame_weights:
+                    # 将摄像头分为两组
+                    mask_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('mask')}
+                    camera_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('camera')}
+                    
+                    # 处理mask摄像头的权重 - 进行归一化
+                    if mask_cams:
+                        total_mask_weight = sum(mask_cams.values())
+                        mask_count = len(mask_cams)
+                        
+                        if total_mask_weight > 0:  # 避免除以零
+                            # 归一化公式：weight * 摄像头数量 / 总权重
+                            for cam_name, weight in mask_cams.items():
+                                norm_weight = weight * mask_count / total_mask_weight
+                                self.datas[f'/observations/weight/{cam_name}'].append(norm_weight)
+                        else:
+                            # 如果总权重为零，所有mask摄像头权重设为1
+                            for cam_name in mask_cams:
+                                self.datas[f'/observations/weight/{cam_name}'].append(1.0)
+    
+                    # 处理camera摄像头的权重 - 全部设置为1
+                    for cam_name in camera_cams:
+                        self.datas[f'/observations/weight/{cam_name}'].append(1.0)
+
             
             # 设置输出文件路径
             self.record_path = os.path.join(self.output_path, f"episode_{folder_name}.hdf5")
@@ -146,6 +194,15 @@ class RawToHDF5Converter:
             for cam_name in self.camera_names:
                 _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), 
                                         dtype='uint8', chunks=(1, 480, 640, 3))
+                
+
+            # 创建权重组
+            weight = obs.create_group('weight')
+            
+            # 创建权重数据集
+            for cam_name in self.camera_names:
+                _ = weight.create_dataset(cam_name, (max_timesteps,), dtype='float32')
+        
             
             # 修改维度
             qpos = obs.create_dataset('qpos', (max_timesteps, 8))

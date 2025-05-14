@@ -2,7 +2,7 @@
 
 
 # 0 采样 1 重现 2 评估
-mode: 0  
+mode: 2  
 
 # 0 采样
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
@@ -36,7 +36,7 @@ src_path: *raw_data_path
 # 2 评估
 act_policy:
   'eval': true
-  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/training/pick_and_lift/30static_4_10000"
+  'ckpt_dir': "/home/madoka/python/rlbench_imitation_learning/training/pick_and_lift/30static_4_4000_0"
   'ckpt_name': 'policy_step_4000_seed_0.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false

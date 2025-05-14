@@ -475,23 +475,25 @@ class RLBenchProcessor:
 
         return imgdata, robot_state
 
-    def act_eval(self, max_steps=250, max_attempts=5):
+    def act_eval(self, max_steps=250, max_attempts=100):
         """
-        执行指定任务，失败时自动重试
+        执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
         Args:
             max_steps: 每次尝试的最大执行步数
             max_attempts: 最大尝试次数
 
         Returns:
-            success: 任务是否成功完成
+            tuple: (成功率, 平均步骤数)
         """
         from weight import calculate_change_weight  # 导入计算权重的函数
         
-        success = False
+        success_counts = 0  # 成功次数统计
+        successful_steps = []  # 记录每次成功尝试的步骤数
         attempt = 0
+        
         try:
-            while not success and attempt < max_attempts:
+            while attempt < max_attempts:
                 attempt += 1
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
@@ -504,28 +506,24 @@ class RLBenchProcessor:
                 prev_images = None
                 
                 # 执行控制循环
+                success_in_this_attempt = False
                 for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
                     print(f"机器人状态: {robot_state}")
 
-
-                    # 历史权重与当前权重的平滑融合
-                    # alpha = 0.7  # 平滑因子 暂时不用
-
-
                     # 计算权重view_weights
                     view_weights = []
-                    # if prev_images is not None:
-                    #     print("计算视角变化权重：")
-                    #     for cam_name in self.camera_names_forward:
-                    #         if cam_name in imgdata:
-                    #             curr_img = imgdata[f"{cam_name}_mask"]
-                    #             prev_img = prev_images[f"{cam_name}_mask"]
-                    #             # 计算变化权重
-                    #             weight = calculate_change_weight(prev_img, curr_img)
-                    #             view_weights.append(weight)
-                    #             print(f"  - {cam_name}: {weight:.4f}")
+                    if prev_images is not None:
+                        print("计算视角变化权重：")
+                        for cam_name in self.camera_names_forward:
+                            if cam_name in imgdata:
+                                curr_img = imgdata[f"{cam_name}_mask"]
+                                prev_img = prev_images[f"{cam_name}_mask"]
+                                # 计算变化权重
+                                weight = calculate_change_weight(prev_img, curr_img)
+                                view_weights.append(weight)
+                                print(f"  - {cam_name}: {weight:.4f}")
                     
                     # 如果有计算出权重，则使用它们；否则使用默认权重
                     if view_weights and len(view_weights) == len(self.camera_names_forward):
@@ -568,8 +566,10 @@ class RLBenchProcessor:
 
                         # 检查任务状态
                         if reward == 1.0:
-                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功!")
-                            success = True
+                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功! 使用步骤: {step+1}")
+                            success_counts += 1
+                            successful_steps.append(step+1)  # 记录成功所需的步骤数
+                            success_in_this_attempt = True
                             break
 
                         if terminate:
@@ -580,25 +580,34 @@ class RLBenchProcessor:
                         print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
                         break
                 
-                if not success and attempt < max_attempts:
+                if not success_in_this_attempt and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
                     time.sleep(1)
             
-            print(f"\n任务执行结束. {'成功' if success else f'全部 {attempt} 次尝试均失败'}")
-            return success
+            # 计算统计结果
+            success_rate = success_counts / attempt if attempt > 0 else 0
+            avg_steps = sum(successful_steps) / len(successful_steps) if successful_steps else 0
+            
+            print(f"\n===== 评估结果统计 =====")
+            print(f"- 总尝试次数: {attempt}")
+            print(f"- 成功次数: {success_counts}")
+            print(f"- 成功率: {success_rate:.2%}")
+            print(f"- 平均成功步骤数: {avg_steps:.2f}")
+            if successful_steps:
+                print(f"- 最少步骤数: {min(successful_steps)}")
+                print(f"- 最多步骤数: {max(successful_steps)}")
+            
+            return success_rate, avg_steps
 
         except Exception as e:
             print(f"任务执行过程中发生错误: {e}")
-            return False
+            return 0, 0
 
         finally:
             # 只在所有尝试结束后关闭环境
-            if self.env is not None and attempt >= max_attempts or success:
+            if self.env is not None and attempt >= max_attempts:
                 self.env.shutdown()
                 print("RLBench环境已关闭")
-
-
-
 
     def process_all_epochs(self):
         """处理所有的epoch（遍历数据文件夹中的所有子文件夹）"""
@@ -610,7 +619,7 @@ class RLBenchProcessor:
         # 获取所有子文件夹（epoch）
         epoch_folders = []
         for item in os.listdir(self.data_path):
-            item_path = os.path.join(self.data_path, item)
+            item_path = os.path路径.join(self.data_path, item)
             # 只处理文件夹且确保有state.json文件
             if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, 'state.json')):
                 epoch_folders.append(item)

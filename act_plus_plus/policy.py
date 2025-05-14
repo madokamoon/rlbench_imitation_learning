@@ -212,7 +212,7 @@ class ACTPolicy(nn.Module):
         self.vq = args_override['vq']
         print(f'KL Weight {self.kl_weight}')
 
-    # act修改权重
+    # act修改权重 加入view_weights参数
     def __call__(self, qpos, image, actions=None, is_pad=None, vq_sample=None, view_weights=None):
         env_state = None
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],

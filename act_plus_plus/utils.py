@@ -78,6 +78,15 @@ class EpisodicDataset(torch.utils.data.Dataset):
                         decompressed_image = cv2.imdecode(image_dict[cam_name], 1)
                         image_dict[cam_name] = np.array(decompressed_image)
                 
+                # act修改权重 __getitem__获取权重数据  
+                weight_dict = dict()
+                for cam_name in self.camera_names:
+                    if f'/observations/weight/{cam_name}' in root:
+                        weight_dict[cam_name] = root[f'/observations/weight/{cam_name}'][start_ts]
+                    else:
+                        # 如果没有权重数据，使用默认值1.0
+                        weight_dict[cam_name] = 1.0
+                
                 # get all actions after and including start_ts
                 if is_sim:
                     action = action[start_ts:]
@@ -142,8 +151,13 @@ class EpisodicDataset(torch.utils.data.Dataset):
             print(f'Error loading {dataset_path} in __getitem__')
             quit()
 
-        # print(image_data.dtype, qpos_data.dtype, action_data.dtype, is_pad.dtype)
-        return image_data, qpos_data, action_data, is_pad
+        # act修改权重 __getitem__获取权重数据
+        weight_data = torch.zeros(len(self.camera_names), dtype=torch.float32)
+        for i, cam_name in enumerate(self.camera_names):
+            weight_data[i] = torch.tensor(weight_dict[cam_name], dtype=torch.float32)
+
+        # 返回时增加权重数据
+        return image_data, qpos_data, action_data, is_pad, weight_data
 
 
 def get_norm_stats(dataset_path_list):
