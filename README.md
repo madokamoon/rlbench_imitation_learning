@@ -167,9 +167,15 @@ python data_sampler.py
 
 
 
-# 三、问题
+# 三、其他
 
-rlbench 不能与 cv2 同时使用，否则会报错：
+## 搜索 `act修改` 可以查看对act代码的所有改动
+
+
+
+## rlbench 不能与 cv2 同时使用
+
+否则会报错：
 
 ```bash
 qt.qpa.plugin: Could not find the Qt platform plugin "xcb" in "/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/cv2/qt/plugins"
@@ -187,7 +193,7 @@ pip install opencv-python
 ```
 
 
-# 四、常用指令
+## 常用指令
 
 ```bash
 # 在电脑和服务器间复制数据
