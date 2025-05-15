@@ -275,6 +275,25 @@ class ACTPolicyWrapper:
 
         return curr_image
     
+    def visualize_tensor(self, tensor):
+        """可视化张量中的图像"""
+        import matplotlib.pyplot as plt
+        
+        # 转换为numpy数组
+        images = tensor.cpu().numpy()[0]  # 移除批次维度
+        
+        plt.figure(figsize=(20, 5))
+        for i in range(len(self.camera_names)):
+            # 转换通道顺序 [C, H, W] -> [H, W, C]
+            img = np.transpose(images[i], (1, 2, 0))
+            
+            plt.subplot(1, len(self.camera_names), i+1)
+            plt.title(f"处理后: {self.camera_names[i]}")
+            plt.imshow(img)  # 图像已归一化到[0,1]
+            plt.axis('off')
+        
+        plt.tight_layout()
+        plt.show()
 
     def get_actions(self, imgdata, robot_state, view_weights=None):
         """
@@ -298,6 +317,8 @@ class ACTPolicyWrapper:
             # 处理图像数据
             if self.step % self.query_frequency == 0:
                 curr_image = self.preprocess_images(imgdata)
+
+                # self.visualize_tensor(curr_image)
 
             if self.step == 0:
                 # warm up
@@ -326,17 +347,17 @@ class ACTPolicyWrapper:
                 raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
                 
                 # 是否开启夹爪延迟？
-                # actions_for_curr_step2 = self.all_time_actions[:, max(self.step-15, 0)]
-                # actions_populated2 = torch.all(actions_for_curr_step2 != 0, axis=1)
-                # actions_for_curr_step2 = actions_for_curr_step2[actions_populated2]
-                # k = 0.01
-                # exp_weights2 = np.exp(-k * np.arange(len(actions_for_curr_step2)))
-                # exp_weights2 = exp_weights2 / exp_weights2.sum()
-                # exp_weights2 = torch.from_numpy(exp_weights2).cuda().unsqueeze(dim=1)
-                # raw_action2 = (actions_for_curr_step2 * exp_weights2).sum(dim=0, keepdim=True)
+                actions_for_curr_step2 = self.all_time_actions[:, max(self.step-15, 0)]
+                actions_populated2 = torch.all(actions_for_curr_step2 != 0, axis=1)
+                actions_for_curr_step2 = actions_for_curr_step2[actions_populated2]
+                k = 0.01
+                exp_weights2 = np.exp(-k * np.arange(len(actions_for_curr_step2)))
+                exp_weights2 = exp_weights2 / exp_weights2.sum()
+                exp_weights2 = torch.from_numpy(exp_weights2).cuda().unsqueeze(dim=1)
+                raw_action2 = (actions_for_curr_step2 * exp_weights2).sum(dim=0, keepdim=True)
 
                 # 修改维度
-                # raw_action[0][7]=raw_action2[0][7]
+                raw_action[0][7]=raw_action2[0][7]
 
             else:
                 raw_action = self.all_actions[:, self.step % self.query_frequency]

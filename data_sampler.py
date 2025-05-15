@@ -10,6 +10,7 @@ import time, datetime
 from tqdm import tqdm 
 import random
 import torch
+import pickle
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -42,7 +43,9 @@ class RLBenchProcessor:
         self.image_height = self.config['image']['height']
         self.camera_names = self.config['cameras']
         self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
-        
+        self.static_positions = self.config['static_positions']
+
+
         # 确定运行模式 (采样 or 反应)
         self.mode = self.config.get('mode', 0)
         print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
@@ -107,6 +110,33 @@ class RLBenchProcessor:
         # obs_config.record_gripper_closing = True  # 会卡很久
           
         return obs_config
+    
+        # 更多ObservationConfig 可配置参数：
+
+        # | 属性名                       | 类型             | 说明                  |
+        # | ------------------------- | -------------- | ------------------- |
+        # | `front_camera`            | `CameraConfig` | 前置摄像头配置（RGB/深度/分割等） |
+        # | `left_shoulder_camera`    | `CameraConfig` | 左肩摄像头配置             |
+        # | `right_shoulder_camera`   | `CameraConfig` | 右肩摄像头配置             |
+        # | `overhead_camera`         | `CameraConfig` | 俯视摄像头配置             |
+        # | `wrist_camera`            | `CameraConfig` | 手腕摄像头配置             |
+        # | `wrist_camera_matrix`     | `bool`         | 是否返回手腕摄像头的 4x4 变换矩阵 |
+        # | `gripper_open`            | `bool`         | 返回夹爪是否张开（开/合）       |
+        # | `gripper_pose`            | `bool`         | 返回夹爪的世界位姿（位置 + 方向）  |
+        # | `gripper_joint_positions` | `bool`         | 返回夹爪的各个关节角度         |
+        # | `gripper_matrix`          | `bool`         | 返回夹爪的 4x4 变换矩阵      |
+        # | `gripper_touch_forces`    | `bool`         | 返回夹爪的触觉接触力量         |
+        # | `joint_positions`         | `bool`         | 返回机械臂的各个关节位置        |
+        # | `joint_velocities`        | `bool`         | 返回机械臂的各个关节速度        |
+        # | `joint_forces`            | `bool`         | 返回机械臂的各个关节受力（力矩）    |
+        # | `joint_positions_noise`   | `NoiseModel`   | 对关节位置加入噪声的模型        |
+        # | `joint_velocities_noise`  | `NoiseModel`   | 对关节速度加入噪声的模型        |
+        # | `joint_forces_noise`      | `NoiseModel`   | 对关节力加入噪声的模型         |
+        # | `task_low_dim_state`      | `bool`         | 是否返回任务的低维状态（手工特征）   |
+        # | `record_gripper_closing`  | `bool`         | 是否记录夹爪闭合过程（用于数据集生成） |
+
+
+
 
     def task_file_to_task_class(self, task_file):
         class_name = ''.join([w[0].upper() + w[1:] for w in task_file.split('_')])
@@ -128,13 +158,13 @@ class RLBenchProcessor:
         print("设置RLBench环境...")
         
         # 根据模式选择不同的控制方式
-        if self.mode == 1 :
+        if self.mode == 1 or self.mode == 2:
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
             print("使用末端位姿控制模式进行轨迹执行")
-        elif self.mode == 0 or self.mode == 2:
+        elif self.mode == 0 :
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
@@ -320,10 +350,89 @@ class RLBenchProcessor:
 
         self._check_and_make(variation_path)
 
+
+        if self.static_positions == True:
+
+            # 环境状态保存路径
+            env_state_path = os.path.join(variation_path, "initial_state.pickle")
+            
+            # 检查环境状态文件是否已存在
+            if os.path.exists(env_state_path):
+                print(f"找到已存在的环境状态文件: {env_state_path}")
+                try:
+                    with open(env_state_path, 'rb') as f:
+                        env_info = pickle.load(f)
+                    
+                    # 加载环境配置
+                    descriptions = env_info['descriptions']
+                    random_state = env_info['random_state']
+                    numpy_state = env_info['numpy_state']
+                    reference_demo = env_info['reference_demo']  # 直接加载已保存的参考演示
+                    timestamp = env_info['timestamp']
+                    
+                    print(f"成功加载环境状态，创建于: {timestamp}")
+                    
+                    # 重置环境
+                    print("重置环境...")
+                    self.task.reset()
+                    
+                    # 设置随机数状态
+                    print("恢复随机数状态...")
+                    random.setstate(random_state)
+                    np.random.set_state(numpy_state)
+                    
+                    print("已加载保存的参考演示，无需重新获取")
+                    
+                except Exception as e:
+                    print(f"加载环境状态失败: {e}，将重新创建")
+                    # 如果加载失败，回退到创建新环境状态
+                    env_state_exists = False
+            else:
+                print("未找到环境状态文件，将创建新的环境状态")
+                # 首次重置获取初始环境
+                print("首次重置环境...")
+                descriptions, first_obs = self.task.reset()
+                
+                # 保存随机数种子和环境配置
+                print("保存随机数种子和环境配置...")
+                random_state = random.getstate()
+                numpy_state = np.random.get_state()
+                
+                # 获取第一个演示，用于初始状态参考
+                print("获取初始状态参考演示...")
+                reference_demo = self.task.get_demos(1, live_demos=True)[0]
+                
+                # 保存环境信息
+                env_info = {
+                    'descriptions': descriptions,
+                    'random_state': random_state,
+                    'numpy_state': numpy_state,
+                    'reference_demo': reference_demo,  # 保存参考演示对象
+                    'timestamp': datetime.datetime.now().isoformat()
+                }
+                
+                with open(env_state_path, 'wb') as f:
+                    pickle.dump(env_info, f)
+                
+                print(f"初始环境配置已保存到: {env_state_path}")
+
         # 逐个收集和保存demo
         for i in range(self.num_demos):
             print(f'收集和保存演示 {i}/{self.num_demos}')
             
+            if self.static_positions == True:
+                # 恢复随机数状态以确保一致的环境
+                print(f"恢复随机数状态...")
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
+                
+                # 重置任务并恢复到与参考演示相同的初始状态
+                print(f"重置环境到初始状态...")
+                self.task.reset_to_demo(reference_demo)
+                
+                # 获取demo
+                print(f"执行演示 {i}...")
+
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
             
@@ -492,15 +601,57 @@ class RLBenchProcessor:
         successful_steps = []  # 记录每次成功尝试的步骤数
         attempt = 0
         
+        if self.static_positions == True:
+                     # 加载环境状态数据
+            reference_demo = None
+            random_state = None
+            numpy_state = None
+
+            task_path = os.path.join(self.save_path_head, self.taskname)
+            variation_path = os.path.join(task_path, self.save_path_end)
+            env_state_path = os.path.join(variation_path, "initial_state.pickle")
+            if env_state_path and os.path.exists(env_state_path):
+                print(f"加载环境状态数据: {env_state_path}")
+                try:
+                    with open(env_state_path, 'rb') as f:
+                        env_info = pickle.load(f)
+                
+                    # 获取存储的状态
+                    random_state = env_info.get('random_state')
+                    numpy_state = env_info.get('numpy_state')
+                    reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
+                    descriptions = env_info.get('descriptions')
+                    
+                    print(f"成功加载环境状态，描述: {descriptions}")
+                    
+                    if reference_demo is None:
+                        # 如果没有保存参考演示，则获取新的
+                        print("未找到保存的参考演示")
+                    else:
+                        print("已加载保存的参考演示，无需重新获取")
+            
+                except Exception as e:
+                    print(f"加载环境状态失败: {e}")
+                    env_state_path = None
+
+
         try:
             while attempt < max_attempts:
                 attempt += 1
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
-                # 重置任务获取初始观察
-                descriptions, obs = self.task.reset()
-                self.act_policy.reset()
-                print(f"任务描述: {descriptions}")
+                if self.static_positions == True:
+                    print("恢复到保存的初始环境状态...")
+                    # 恢复随机数状态
+                    random.setstate(random_state)
+                    np.random.set_state(numpy_state)
+                    
+                    # 恢复到参考演示的初始状态
+                    self.task.reset_to_demo(reference_demo)
+                    _, obs = self.task.reset()
+                else:
+                    descriptions, obs = self.task.reset()
+                    self.act_policy.reset()
                 
                 # 用于存储上一帧的图像
                 prev_images = None

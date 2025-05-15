@@ -582,15 +582,40 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     return success_rate, avg_return
 
 
+
+def visualize_tensor(camera_names, tensor):
+    """可视化张量中的图像"""
+    import matplotlib.pyplot as plt
+    
+    # 转换为numpy数组
+    images = tensor.cpu().numpy()[0]  # 移除批次维度
+    
+    plt.figure(figsize=(20, 5))
+    for i in range(len(camera_names)):
+        # 转换通道顺序 [C, H, W] -> [H, W, C]
+        img = np.transpose(images[i], (1, 2, 0))
+        
+        plt.subplot(1, len(camera_names), i+1)
+        plt.title(f"1: {camera_names[i]}")
+        plt.imshow(img)  # 图像已归一化到[0,1]
+        plt.axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+
 def forward_pass(data, policy):
     # act修改权重 前向传递函数
     image_data, qpos_data, action_data, is_pad , weight_data = data
-    # print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}, {weight_data.shape}')
+    print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}, {weight_data.shape}')
     # print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}, {type(weight_data)}')
 
     image_data, qpos_data, action_data, is_pad, weight_data = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda(), weight_data.cuda()
     # print('forward pass weight_data',weight_data)
     # return policy(qpos_data, image_data, action_data, is_pad,weight_data)    # TODO remove None
+
+
+    # visualize_tensor(["1",'2','3'],image_data)
+
 
     return policy(qpos_data, image_data, action_data, is_pad)
 

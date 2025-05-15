@@ -296,7 +296,7 @@ def build(args):
     if args.no_encoder:
         encoder = None
     else:
-        # act修改代码错误
+        # act修改原本的代码错误
         # encoder = build_transformer(args)
         encoder = build_encoder(args)
 

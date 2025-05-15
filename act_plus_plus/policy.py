@@ -12,7 +12,7 @@ e = IPython.embed
 
 from collections import OrderedDict
 
-# act修改代码删除
+# act修改导入删除
 
 # from robomimic.models.base_nets import ResNet18Conv, SpatialSoftmax
 # from robomimic.algo.diffusion_policy import replace_bn_with_gn, ConditionalUnet1D
