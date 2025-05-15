@@ -123,6 +123,8 @@ weight.py ：互信息计算
 
 weight_visualization.py ：权重可视化
 
+> weight_distribution 相关的 mp4 gif png 四个文件是一个例子，weight使用每个视角的mask进行计算
+
 
 ## mode=0 数据收集
 
