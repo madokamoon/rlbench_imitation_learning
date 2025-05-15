@@ -62,6 +62,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
                     action = np.concatenate([root['/action'][()], base_action], axis=-1)
                 else:  
                     action = root['/action'][()]
+
                     # act修改hdf5数据读取-更改为关节控制
                     # action = root['/robot_joint_action'][()]
 
@@ -71,8 +72,10 @@ class EpisodicDataset(torch.utils.data.Dataset):
                 episode_len = original_action_shape[0]
                 # get observation at start_ts only
                 qpos = root['/observations/qpos'][start_ts]
+
                 # act修改hdf5数据读取-更改为关节控制
                 # qpos = root['/observations/robot_joint_state'][start_ts]
+
                 qvel = root['/observations/qvel'][start_ts]
                 image_dict = dict()
                 for cam_name in self.camera_names:
@@ -83,7 +86,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
                         decompressed_image = cv2.imdecode(image_dict[cam_name], 1)
                         image_dict[cam_name] = np.array(decompressed_image)
                 
-                # act修改权重-hdf5数据读取-获取权重数据  
+                # act修改hdf5数据读取-获取权重数据-如果没有设置为1.0 
                 weight_dict = dict()
                 for cam_name in self.camera_names:
                     if f'/observations/weight/{cam_name}' in root:
@@ -156,7 +159,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
             print(f'Error loading {dataset_path} in __getitem__')
             quit()
 
-        # act修改权重 __getitem__获取权重数据
+        # act修改hdf5数据读取-获取权重数据-转换为tensor 
         weight_data = torch.zeros(len(self.camera_names), dtype=torch.float32)
         for i, cam_name in enumerate(self.camera_names):
             weight_data[i] = torch.tensor(weight_dict[cam_name], dtype=torch.float32)

@@ -143,6 +143,10 @@ class DETRVAE(nn.Module):
 
         return latent_input, probs, binaries, mu, logvar
 
+    # 原代码  
+    # def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None):
+    
+    # act修改 forward 传入参数
     def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None, view_weights=None):
         """
         qpos: batch, qpos_dim
@@ -162,10 +166,15 @@ class DETRVAE(nn.Module):
                 features, pos = self.backbones[cam_id](image[:, cam_id])
                 features = features[0] # take the last layer feature
                 pos = pos[0]
+
+
+                # 原代码   
+                # all_cam_features.append(self.input_proj(features))
+                # all_cam_pos.append(pos)
+
+                # act修改 对 self.input_proj(features) 乘上权重，view_weights 默认为 None 时不起作用，等同于原代码
                 cam_features = self.input_proj(features)
                 
-                # act修改权重  forward函数 
-                # 如果提供了视角权重，应用权重
                 if view_weights is not None:
                     # 确保权重在GPU上且形状正确
                     if isinstance(view_weights, list):
@@ -176,6 +185,8 @@ class DETRVAE(nn.Module):
                     
                 all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
+
+
             
             # proprioception features
             proprio_input = self.input_proj_robot_state(qpos)
@@ -296,7 +307,7 @@ def build(args):
     if args.no_encoder:
         encoder = None
     else:
-        # act修改原本的代码错误
+        # act修改 代码本身错误 参考
         # encoder = build_transformer(args)
         encoder = build_encoder(args)
 

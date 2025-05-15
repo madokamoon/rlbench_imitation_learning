@@ -61,7 +61,10 @@ def main(args):
         from constants import SIM_TASK_CONFIGS
         task_config = SIM_TASK_CONFIGS[task_name]
     else:
-        # 从data_sampler.yaml读取任务配置
+        # from aloha_scripts.constants import TASK_CONFIGS
+        # task_config = TASK_CONFIGS[task_name]
+        # act修改 从data_sampler.yaml读取任务配置
+
         import yaml
         yaml_path = os.path.join(os.path.dirname(__file__), "../data_sampler.yaml")
         print(f"读取配置文件: {yaml_path}")
@@ -84,13 +87,12 @@ def main(args):
     # num_episodes = task_config['num_episodes']
     episode_len = task_config['episode_len']
     camera_names = task_config['camera_names']
-    stats_dir = task_config.get('stats_dir', None) # 用于存储或读取数据集的统计数据（如动作和关节位置的均值、标准差等）？
-    sample_weights = task_config.get('sample_weights', None)  # 用于在训练时对不同样本进行加权？
-    train_ratio = task_config.get('train_ratio', 0.99) # 定义训练集与验证集的分割比例
-    name_filter = task_config.get('name_filter', lambda n: True) # 用于筛选要加载的数据文件
+    stats_dir = task_config.get('stats_dir', None)
+    sample_weights = task_config.get('sample_weights', None)
+    train_ratio = task_config.get('train_ratio', 0.99)
+    name_filter = task_config.get('name_filter', lambda n: True)
 
     # fixed parameters
-    # 固定参数
     # act修改维度
     state_dim = 8
     lr_backbone = 1e-5
@@ -122,7 +124,8 @@ def main(args):
         # 配置Diffusion策略的参数
         policy_config = {'lr': args['lr'],
                          'camera_names': camera_names,
-                         'action_dim': 9,
+                         # act修改维度
+                         'action_dim': 10,
                          'observation_horizon': 1,
                          'action_horizon': 8,
                          'prediction_horizon': args['chunk_size'],
@@ -132,14 +135,12 @@ def main(args):
                          'vq': False,
                          }
     elif policy_class == 'CNNMLP':
-        # 配置CNNMLP策略的参数
         policy_config = {'lr': args['lr'], 'lr_backbone': lr_backbone, 'backbone' : backbone, 'num_queries': 1,
                          'camera_names': camera_names,}
     else:
         raise NotImplementedError
 
     actuator_config = {
-        # 配置执行器网络的参数
         'actuator_network_dir': args['actuator_network_dir'],
         'history_len': args['history_len'],
         'future_len': args['future_len'],
@@ -582,7 +583,7 @@ def eval_bc(config, ckpt_name, save_episode=True, num_rollouts=50):
     return success_rate, avg_return
 
 
-
+# act修改 增加函数 用于可视化张量中的图像
 def visualize_tensor(camera_names, tensor):
     """可视化张量中的图像"""
     import matplotlib.pyplot as plt
@@ -603,21 +604,24 @@ def visualize_tensor(camera_names, tensor):
     plt.tight_layout()
     plt.show()
 
-def forward_pass(data, policy):
-    # act修改权重 前向传递函数
-    image_data, qpos_data, action_data, is_pad , weight_data = data
-    print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}, {weight_data.shape}')
-    # print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}, {type(weight_data)}')
 
+
+def forward_pass(data, policy):
+
+    # image_data, qpos_data, action_data, is_pad = data
+    # image_data, qpos_data, action_data, is_pad = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda()
+    # return policy(qpos_data, image_data, action_data, is_pad)   # TODO remove None
+
+
+    # act修改 forward_pass 增加weight_data
+    image_data, qpos_data, action_data, is_pad , weight_data = data
+    # print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}, {weight_data.shape}')
+    # print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}, {type(weight_data)}')
     image_data, qpos_data, action_data, is_pad, weight_data = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda(), weight_data.cuda()
     # print('forward pass weight_data',weight_data)
-    # return policy(qpos_data, image_data, action_data, is_pad,weight_data)    # TODO remove None
-
-
     # visualize_tensor(["1",'2','3'],image_data)
-
-
-    return policy(qpos_data, image_data, action_data, is_pad)
+    # return policy(qpos_data, image_data, action_data, is_pad,weight_data)    # 使用权重
+    return policy(qpos_data, image_data, action_data, is_pad)  # 不使用权重 直接不传入
 
 
 def train_bc(train_dataloader, val_dataloader, config):
@@ -679,7 +683,7 @@ def train_bc(train_dataloader, val_dataloader, config):
                 
         # evaluation
         # 评估
-        # act修改训练不验证
+        # act修改训练时不eval
         # if (step > 0) and (step % eval_every == 0):
         #     # first save then eval
         #     ckpt_name = f'policy_step_{step}_seed_{seed}.ckpt'

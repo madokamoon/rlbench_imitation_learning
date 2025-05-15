@@ -12,7 +12,7 @@ e = IPython.embed
 
 from collections import OrderedDict
 
-# act修改导入删除
+# act修改导入删除 暂不使用DP
 
 # from robomimic.models.base_nets import ResNet18Conv, SpatialSoftmax
 # from robomimic.algo.diffusion_policy import replace_bn_with_gn, ConditionalUnet1D
@@ -212,7 +212,7 @@ class ACTPolicy(nn.Module):
         self.vq = args_override['vq']
         print(f'KL Weight {self.kl_weight}')
 
-    # act修改权重 加入view_weights参数
+    # act修改 ACTPolicy.__call__ 加入view_weights参数 不传入默认为 None，和原始方法一致
     def __call__(self, qpos, image, actions=None, is_pad=None, vq_sample=None, view_weights=None):
         env_state = None
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],

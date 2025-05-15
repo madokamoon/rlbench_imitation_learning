@@ -55,7 +55,7 @@ def get_args_parser():
     # repeat args in imitate_episodes just to avoid error. Will not be used
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--onscreen_render', action='store_true')
-    # act修改代码优化
+    # act修改代码优化 对以下参数的 required=True 修改为 required=False ，方便 推理时 使用 args_override 传入参数，无需命令行
     parser.add_argument('--ckpt_dir', action='store', type=str, help='ckpt_dir', required=False)
     parser.add_argument('--policy_class', action='store', type=str, help='policy_class, capitalize', required=False)
     parser.add_argument('--task_name', action='store', type=str, help='task_name', required=False)
