@@ -169,7 +169,7 @@ python data_sampler.py
 
 # 三、其他
 
-## 搜索 `act修改` 可以查看对act代码的所有改动
+## 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
 
 
 
