@@ -346,18 +346,17 @@ class ACTPolicyWrapper:
                 exp_weights = torch.from_numpy(exp_weights).cuda().unsqueeze(dim=1)
                 raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
                 
-                # 是否开启夹爪延迟？
-                actions_for_curr_step2 = self.all_time_actions[:, max(self.step-15, 0)]
-                actions_populated2 = torch.all(actions_for_curr_step2 != 0, axis=1)
-                actions_for_curr_step2 = actions_for_curr_step2[actions_populated2]
-                k = 0.01
-                exp_weights2 = np.exp(-k * np.arange(len(actions_for_curr_step2)))
-                exp_weights2 = exp_weights2 / exp_weights2.sum()
-                exp_weights2 = torch.from_numpy(exp_weights2).cuda().unsqueeze(dim=1)
-                raw_action2 = (actions_for_curr_step2 * exp_weights2).sum(dim=0, keepdim=True)
+                # 是否开启夹爪延迟？？ 注释为不延迟 如果修改维度 记得修改这里
+                # actions_for_curr_step2 = self.all_time_actions[:, max(self.step-15, 0)]
+                # actions_populated2 = torch.all(actions_for_curr_step2 != 0, axis=1)
+                # actions_for_curr_step2 = actions_for_curr_step2[actions_populated2]
+                # k = 0.01
+                # exp_weights2 = np.exp(-k * np.arange(len(actions_for_curr_step2)))
+                # exp_weights2 = exp_weights2 / exp_weights2.sum()
+                # exp_weights2 = torch.from_numpy(exp_weights2).cuda().unsqueeze(dim=1)
+                # raw_action2 = (actions_for_curr_step2 * exp_weights2).sum(dim=0, keepdim=True)
+                # raw_action[0][7]=raw_action2[0][7]
 
-                # 修改维度
-                raw_action[0][7]=raw_action2[0][7]
 
             else:
                 raw_action = self.all_actions[:, self.step % self.query_frequency]

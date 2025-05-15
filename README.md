@@ -3,6 +3,7 @@
 使用 RLBench 收集模仿学习数据 
 
 参考资料
+
 [GitHub - RLBench](https://github.com/stepjam/RLBench)
 
 [CoppeliaSim Doc](https://manual.coppeliarobotics.com/index.html)
@@ -31,11 +32,13 @@ coppeliaSim.sh
 ```
 ## 安装RLBench
 
-启用一个IL算法conda环境，无python版本要求
+启用一个IL算法conda环境，无python版本要求，这里启用下面创建的 rlact
 ```
 conda activate rlact
 ```
 使用pip安装到`site-packages`，并非安装本项目的RLbench文件夹
+
+本项目的RLbench文件夹无用，仅方便参考
 ```
 pip install git+https://github.com/stepjam/RLBench.git
 ```
@@ -74,8 +77,6 @@ cd act-plus-plus/detr/
 pip install -e .
 
 
-
-
 # 安装以下内容以运行act-plus中的 Diffusion Policy 但是安装后 numpy 版本冲突 暂不安装
 # git clone https://githubfast.com/ARISE-Initiative/robomimic --recurse-submodules
 # git checkout r2d2
@@ -93,9 +94,14 @@ pip install -e .
 `"RuntimeError: Handle cam_head_mask does not exist"`
 
 如果不小心保存了更改，请使用本项目的`task_design.ttt`替换conda环境中的`task_design.ttt `
+
+例如我的环境为 `/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages`
+
+项目路径为 `/home/madoka/python/rlbench_imitation_learning`
+
+则运行以下命令：
+
 ```bash
-# 例如我的环境为 /home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages
-# 项目路径为 /home/madoka/python/rlbench_imitation_learning
 cd /home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/rlbench
 rm task_design.ttt 
 cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.ttt task_design.ttt 
@@ -103,22 +109,27 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 
 ## 文件说明
 
-data_sampler.yaml：集成数据采集，数据转换，仿真测试的配置
+data_sampler.yaml：集成采集，重现，转换，训练，测试的配置
 
-data_sampler.py：集成数据采集，数据重现（利用收集的数据在rlbench中重现动作），仿真测试的功能
+data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
+
+> 数据重现指利用收集的数据在rlbench中重现动作，暂未保存物体初始摆放位置，仅重现动作
 
 data_proccess.py ：数据转换功能，转换为hdf5同时计算权重
 
-act_policy_wrapper.py ：被 data_sampler.py 的 仿真测试 模式调用
+act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
 
 weight.py ：互信息计算
 
-weight_visualization.py ：权重可视化 
+weight_visualization.py ：权重可视化
 
 
-## MODE=0 数据收集
+## mode=0 数据收集
 
-配置文件中的`taskname`：可用任务名称参见 `RLBench/rlbench/tasks` 文件夹
+配置文件中的`taskname` 的可用任务名称参见 `RLBench/rlbench/tasks` 文件夹
+
+目前发现 pick_and_lift 和实际任务最相似
+
 ```bash
 python data_sampler.py
 ```
@@ -128,7 +139,7 @@ python data_sampler.py
 ```bash
 python data_proccess.py
 ```
-## MODE=1 数据转换
+## mode=1 数据转换
 ```bash
 python data_sampler.py
 ```
@@ -144,11 +155,12 @@ python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/p
 
 使用 https://myhdf5.hdfgroup.org/ 网页工具
 
-使用 tools，但tools只支持六维机械臂
+使用 tools，但tools只支持六维机械臂和三个相机
 
-## 训练 
+## imitate_episodes.py 训练 
 
 配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`
+
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_rgb --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
@@ -156,15 +168,13 @@ CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick
 ```
 
 
-## MODE=2 仿真测试
+## mode=2 仿真测试
 
 配置依赖  `data_sampler.yaml 中 的 ['act_policy']`
 
 ```bash
 python data_sampler.py
 ```
-
-
 
 
 # 三、其他
