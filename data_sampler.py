@@ -329,10 +329,6 @@ class RLBenchProcessor:
                     mask_image = np.clip(rgb_array, 0, 255).astype(np.uint8)
                     Image.fromarray(mask_image).save(str(mask_path))
 
-
-
-
-        
         # 保存状态数据到JSON文件
         state_json_path = episode_folder.joinpath("state.json")
         with open(str(state_json_path), 'w') as json_file:
@@ -364,79 +360,39 @@ class RLBenchProcessor:
         print(f"本次运行配置已保存到: {config_save_path}")
 
         if self.static_positions == True:
-            print("静态位置模式")
-            # 环境状态保存路径
+            print("静态位置模式:获取一个标准初始环境")
             env_state_path = os.path.join(variation_path, "initial_state.pickle")
-            # 检查环境状态文件是否已存在
-            if os.path.exists(env_state_path):
-                print(f"找到已存在的环境状态文件: {env_state_path}")
-                try:
-                    with open(env_state_path, 'rb') as f:
-                        env_info = pickle.load(f)
-                    
-                    # 加载环境配置
-                    descriptions = env_info['descriptions']
-                    random_state = env_info['random_state']
-                    numpy_state = env_info['numpy_state']
-                    reference_demo = env_info['reference_demo']  # 直接加载已保存的参考演示
-                    timestamp = env_info['timestamp']
-                    
-                    print(f"成功加载环境状态，创建于: {timestamp}")
-                    
-                    # 重置环境
-                    print("重置环境...")
-                    self.task.reset()
-                    
-                    # 设置随机数状态
-                    print("恢复随机数状态...")
-                    random.setstate(random_state)
-                    np.random.set_state(numpy_state)
-                    
-                    print("已加载保存的参考演示，无需重新获取")
-                    
-                except Exception as e:
-                    print(f"加载环境状态失败: {e}，将重新创建")
-                    # 如果加载失败，回退到创建新环境状态
-                    env_state_exists = False
-            else:
-                print("未找到环境状态文件，将创建新的环境状态")
-                # 首次重置获取初始环境
-                print("首次重置环境...")
-                descriptions, first_obs = self.task.reset()
-                
-                # 保存随机数种子和环境配置
-                print("保存随机数种子和环境配置...")
-                random_state = random.getstate()
-                numpy_state = np.random.get_state()
-                
-                # 获取第一个演示，用于初始状态参考
-                print("获取初始状态参考演示...")
-                reference_demo = self.task.get_demos(1, live_demos=True)[0]
-                
-                # 保存环境信息
-                env_info = {
-                    'descriptions': descriptions,
-                    'random_state': random_state,
-                    'numpy_state': numpy_state,
-                    'reference_demo': reference_demo,  # 保存参考演示对象
-                    'timestamp': datetime.datetime.now().isoformat()
-                }
-                
-                with open(env_state_path, 'wb') as f:
-                    pickle.dump(env_info, f)
-                
-                print(f"初始环境配置已保存到: {env_state_path}")
+            descriptions, obs = self.task.reset()
+            random_state = random.getstate()
+            numpy_state = np.random.get_state()
+            reference_demo = self.task.get_demos(1, live_demos=True)[0]
+            
+            env_info = {
+                'descriptions': descriptions,
+                'random_state': random_state,
+                'numpy_state': numpy_state,
+                'reference_demo': reference_demo, 
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+
+            with open(env_state_path, 'wb') as f:
+                pickle.dump(env_info, f)
+            
+            print(f"初始环境配置已保存到: {env_state_path}")
+
+            # 加载该文件
+            del reference_demo
+            reference_demo = self.load_reference_demo()
 
         # 逐个收集和保存demo
         for i in range(self.num_demos):
             print(f'收集和保存演示 {i}/{self.num_demos}')
             
             if self.static_positions == True:
-                print(f"静态位置模式：恢复环境状态")
-                random.setstate(random_state)
-                np.random.set_state(numpy_state)
                 self.task.reset_to_demo(reference_demo)
-
+                descriptions, obs = self.task.reset()
+            else:
+                descriptions, obs = self.task.reset()
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
@@ -587,6 +543,39 @@ class RLBenchProcessor:
 
         return imgdata, robot_state
 
+    def load_reference_demo(self):   
+
+        reference_demo = None
+        random_state = None
+        numpy_state = None
+
+        task_path = os.path.join(self.save_path_head, self.taskname)
+        variation_path = os.path.join(task_path, self.save_path_end)
+        env_state_path = os.path.join(variation_path, "initial_state.pickle")
+        if env_state_path and os.path.exists(env_state_path):
+            print(f"加载环境状态数据: {env_state_path}")
+            try:
+                with open(env_state_path, 'rb') as f:
+                    env_info = pickle.load(f)
+            
+                # 获取存储的状态
+                random_state = env_info.get('random_state')
+                numpy_state = env_info.get('numpy_state')
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
+
+                reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
+                descriptions = env_info.get('descriptions')
+                
+                print(f"成功加载环境状态，描述: {descriptions}")
+                return reference_demo
+        
+            except Exception as e:
+                print(f"加载环境状态失败: {e}")
+                env_state_path = None
+                return None
+
+
     def act_eval(self, max_steps=200, max_attempts=100):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
@@ -605,38 +594,7 @@ class RLBenchProcessor:
         attempt = 0
         
         if self.static_positions == True:
-                     # 加载环境状态数据
-            reference_demo = None
-            random_state = None
-            numpy_state = None
-
-            task_path = os.path.join(self.save_path_head, self.taskname)
-            variation_path = os.path.join(task_path, self.save_path_end)
-            env_state_path = os.path.join(variation_path, "initial_state.pickle")
-            if env_state_path and os.path.exists(env_state_path):
-                print(f"加载环境状态数据: {env_state_path}")
-                try:
-                    with open(env_state_path, 'rb') as f:
-                        env_info = pickle.load(f)
-                
-                    # 获取存储的状态
-                    random_state = env_info.get('random_state')
-                    numpy_state = env_info.get('numpy_state')
-                    reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
-                    descriptions = env_info.get('descriptions')
-                    
-                    print(f"成功加载环境状态，描述: {descriptions}")
-                    
-                    if reference_demo is None:
-                        # 如果没有保存参考演示，则获取新的
-                        print("未找到保存的参考演示")
-                    else:
-                        print("已加载保存的参考演示，无需重新获取")
-            
-                except Exception as e:
-                    print(f"加载环境状态失败: {e}")
-                    env_state_path = None
-
+            reference_demo = self.load_reference_demo()
 
         try:
             while attempt < max_attempts:
@@ -644,11 +602,8 @@ class RLBenchProcessor:
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
                 if self.static_positions == True:
-                    print("恢复到保存的初始环境状态...")
-                    random.setstate(random_state)
-                    np.random.set_state(numpy_state)
                     self.task.reset_to_demo(reference_demo)
-                    _, obs = self.task.reset()
+                    descriptions, obs = self.task.reset()
                 else:
                     descriptions, obs = self.task.reset()
 
@@ -787,37 +742,9 @@ class RLBenchProcessor:
         
 
         if self.static_positions == True:
-                     # 加载环境状态数据
-            reference_demo = None
-            random_state = None
-            numpy_state = None
+            reference_demo = self.load_reference_demo()
 
-            task_path = os.path.join(self.save_path_head, self.taskname)
-            variation_path = os.path.join(task_path, self.save_path_end)
-            env_state_path = os.path.join(variation_path, "initial_state.pickle")
-            if env_state_path and os.path.exists(env_state_path):
-                print(f"加载环境状态数据: {env_state_path}")
-                try:
-                    with open(env_state_path, 'rb') as f:
-                        env_info = pickle.load(f)
-                
-                    # 获取存储的状态
-                    random_state = env_info.get('random_state')
-                    numpy_state = env_info.get('numpy_state')
-                    reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
-                    descriptions = env_info.get('descriptions')
-                    
-                    print(f"成功加载环境状态，描述: {descriptions}")
-                    
-                    if reference_demo is None:
-                        # 如果没有保存参考演示，则获取新的
-                        print("未找到保存的参考演示")
-                    else:
-                        print("已加载保存的参考演示，无需重新获取")
-            
-                except Exception as e:
-                    print(f"加载环境状态失败: {e}")
-                    env_state_path = None
+
 
 
         # 遍历执行每个epoch
@@ -829,11 +756,8 @@ class RLBenchProcessor:
             trajectory_data = self.load_trajectory(epoch_path)
             
             if self.static_positions == True:
-                print("恢复到保存的初始环境状态...")
-                random.setstate(random_state)
-                np.random.set_state(numpy_state)
                 self.task.reset_to_demo(reference_demo)
-                _, obs = self.task.reset()
+                descriptions, obs = self.task.reset()
             else:
                 descriptions, obs = self.task.reset()
 

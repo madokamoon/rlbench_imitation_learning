@@ -137,8 +137,8 @@ python data_sampler.py
 
 利用收集的数据在rlbench中重现动作，如果不是静态模式，仅重现动作
 
-如果是静态模式，会加载 initial_state.pickle 文件
- 
+如果是静态模式 `static_positions: True` ，会加载 initial_state.pickle 环境
+
 ```bash
 python data_proccess.py
 ```
