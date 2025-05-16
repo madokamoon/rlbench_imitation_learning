@@ -330,9 +330,91 @@ class ACTPolicyWrapper:
             if self.step % self.query_frequency == 0:
                 self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
                 print(self.query_frequency,'次一推理')
-                # print(self.all_actions.shape)
-                # print(qpos)
-                # print(self.all_actions[:,0:10,0:8])
+
+
+                # ------------------------------绘制---------------------------------
+                # 绘制 robot_state 的前三个数值的3维点，使用红色点
+                # 绘制 self.all_actions 的所有时刻的前三个数值的3维点，使用蓝色点，注意 all_actions 是张量，需要转换为 numpy 数组
+                import matplotlib.pyplot as plt
+
+                # 创建图形
+                plt.figure(figsize=(10, 8))
+                ax = plt.subplot(111, projection='3d')
+
+                # 绘制 robot_state 的前三个数值的 3D 点（红色）
+                ax.scatter(robot_state[0], robot_state[1], robot_state[2], 
+                            color='red', s=100, label='Robot State')
+
+                # 将 self.all_actions 转换为 numpy 数组，对每个动作点应用后处理函数，然后绘制
+                all_actions_np = self.all_actions.detach().cpu().numpy()
+                # 创建处理后的动作点数组
+                processed_actions = np.zeros_like(all_actions_np)
+                for i in range(all_actions_np.shape[1]):
+                    processed_actions[0, i] = self.post_process(all_actions_np[0, i])
+                
+                # 绘制处理后的动作点（只取前3个维度）
+                ax.scatter(processed_actions[0, :, 0], processed_actions[0, :, 1], processed_actions[0, :, 2], 
+                        color='blue', alpha=0.6, label='Predicted Actions')
+
+                # 添加标签和图例
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
+                ax.set_zlabel('Z')
+                ax.set_title(f'policy (step {self.step})')
+                ax.legend()
+
+                # 设置坐标轴比例一致
+                x_limits = ax.get_xlim()
+                y_limits = ax.get_ylim()
+                z_limits = ax.get_zlim()
+                
+                # 计算所有轴的最大范围
+                max_range = max([x_limits[1]-x_limits[0], 
+                                y_limits[1]-y_limits[0], 
+                                z_limits[1]-z_limits[0]])
+                
+                # 重新设置每个轴的范围，保持中心点不变
+                x_mid = (x_limits[1] + x_limits[0]) / 2
+                y_mid = (y_limits[1] + y_limits[0]) / 2
+                z_mid = (z_limits[1] + z_limits[0]) / 2
+
+                ax.set_xlim([x_mid - max_range/2, x_mid + max_range/2])
+                ax.set_ylim([y_mid - max_range/2, y_mid + max_range/2])
+                ax.set_zlim([z_mid - max_range/2, z_mid + max_range/2])
+                
+                # 设置相同缩放比例
+                ax.set_box_aspect([1, 1, 1])
+                
+                # 显示图形并等待用户关闭窗口后继续
+                plt.tight_layout()
+                plt.show(block=True)
+
+                # ------------------------------绘制---------------------------------
+
+                # ------------------------------寻找最近的点---------------------------------
+                # 计算当前状态坐标与预测动作中最近的点
+                all_actions_np = self.all_actions.detach().cpu().numpy()
+                # 应用post_process处理动作点
+                processed_actions = np.zeros_like(all_actions_np)
+                for i in range(all_actions_np.shape[1]):
+                    processed_actions[0, i] = self.post_process(all_actions_np[0, i])
+                
+                # 获取当前状态的前3个坐标
+                current_pos = robot_state[0:3]
+                
+                # 计算每个预测点与当前位置的欧几里得距离
+                distances = np.zeros(processed_actions.shape[1])
+                for i in range(processed_actions.shape[1]):
+                    predicted_pos = processed_actions[0, i, 0:3]
+                    distances[i] = np.linalg.norm(current_pos - predicted_pos)
+                
+                # 找到距离最小的点的索引
+                closest_point_idx = np.argmin(distances)
+                
+                # 重新设置step为最近点的索引
+                print(f"发现最近的点，索引从 {self.step % self.query_frequency} 调整为 {closest_point_idx}")
+                self.step = closest_point_idx
+                # ------------------------------寻找最近的点---------------------------------
 
 
             if self.temporal_agg:
@@ -359,11 +441,14 @@ class ACTPolicyWrapper:
 
 
             else:
+
                 raw_action = self.all_actions[:, self.step % self.query_frequency]
 
             raw_action = raw_action.squeeze(0).cpu().numpy()
             action = self.post_process(raw_action)
             target_qpos = action[:-2]
+
+
 
             self.step+=1
 

@@ -7,8 +7,8 @@ data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: 'test'
-  num_demos: 2
+  save_path_end: '20demos_static'
+  num_demos: 20
   image:
     width: 640
     height: 480
@@ -25,8 +25,8 @@ data_sampler_config:
 # ------------------ 训练/评估 ------------------  
 act_policy:
   'task_config':
-    'dataset_dir': 'data/pick_and_lift/20demos_hdf5'
-    'episode_len': 200
+    'dataset_dir': 'data/pick_and_lift/20demos_static_hdf5'
+    'episode_len': 150
     # 'train_ratio': 0.95
     # 'camera_names': ['wrist_camera', 'front_camera', 'overhead_camera']
     'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
@@ -34,7 +34,7 @@ act_policy:
     # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
     # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
   'eval': true
-  'ckpt_dir': 'training/pick_and_lift/20demos_static_hdf5_8_4000_fwo'
+  'ckpt_dir': 'training/pick_and_lift/20demos_hdf5_4_4000_fwo'
   'ckpt_name': 'policy_best.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false
@@ -62,8 +62,8 @@ act_policy:
   'prediction_len': None
     # 原文件 config
   'seed': 0
-  'temporal_agg': true
-  # 'temporal_agg': false
+  # 'temporal_agg': true
+  'temporal_agg': false
   'load_pretrain': false
 
   

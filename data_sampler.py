@@ -658,7 +658,7 @@ class RLBenchProcessor:
 
                     # 模型输出转换为末端位姿控制
                     end_effector_pose = actaction[0:7].copy()
-                    
+
                     # 单位化四元数
                     quat = end_effector_pose[3:7]
                     norm = np.linalg.norm(quat)

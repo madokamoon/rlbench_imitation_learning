@@ -166,7 +166,7 @@ python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/p
 
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_rgb --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
+CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_fwo  --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
 
 ```
 
