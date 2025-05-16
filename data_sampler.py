@@ -11,6 +11,7 @@ from tqdm import tqdm
 import random
 import torch
 import pickle
+import gc  
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -33,27 +34,27 @@ class RLBenchProcessor:
         # 加载配置
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
- 
-        # 从配置中获取参数
-        self.save_path_head = self.config.get('save_path_head')
-        self.save_path_end = self.config.get('save_path_end')
-        self.taskname = self.config.get('taskname')
-        self.num_demos = self.config.get('num_demos')
-        self.image_width = self.config['image']['width']
-        self.image_height = self.config['image']['height']
-        self.camera_names = self.config['cameras']
-        self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
-        self.static_positions = self.config['static_positions']
-
-
-        # 确定运行模式 (采样 or 反应)
+        
         self.mode = self.config.get('mode', 0)
         print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
+
+        # 从配置中获取参数
+        self.data_sampler_config = self.config.get('data_sampler_config', {})
+        self.save_path_head = self.data_sampler_config['save_path_head']
+        self.save_path_end = self.data_sampler_config['save_path_end']
+        self.taskname = self.data_sampler_config['taskname']
+        self.num_demos = self.data_sampler_config['num_demos']
+        self.image_width = self.data_sampler_config['image']['width']
+        self.image_height = self.data_sampler_config['image']['height']
+        self.camera_names = self.data_sampler_config['cameras']
+        self.static_positions = self.data_sampler_config['static_positions']
+
         if self.mode == 1:
             self.data_path = self.config['data_path']
-        elif self.mode == 2:
-            self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
 
+        elif self.mode == 2:
+            self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
+            self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
 
         # 初始化环境和任务相关变量
         self.env = None
@@ -61,9 +62,21 @@ class RLBenchProcessor:
         self.obs_config = None
 
     def _check_and_make(self, directory):
-        """创建目录（如果不存在）"""
         if not os.path.exists(directory):
             os.makedirs(directory)
+            print(f"创建目录: {directory}")
+        else :
+            user_input = input("输出路径已经存在，是否覆盖？(y/n): ")
+            if user_input.lower() == 'y':
+                import shutil
+                shutil.rmtree(directory)
+                print(f"已删除现有目录: {directory}")
+                os.makedirs(directory)
+                print(f"创建目录: {directory}")
+            else:
+                print("操作已取消")
+                return
+
             
     def _check_path_exists(self, directory):
         """检查路径是否存在"""
@@ -155,32 +168,28 @@ class RLBenchProcessor:
         pprint(self.obs_config.__dict__)
         print("\n")
         
-        print("设置RLBench环境...")
-        
-        # 根据模式选择不同的控制方式
         if self.mode == 1 or self.mode == 2:
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
-            print("使用末端位姿控制模式进行轨迹执行")
+            print("末端位姿控制模式")
         elif self.mode == 0 :
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
-            print("使用关节速度控制模式进行数据采样")
+            print("关节速度控制模式")
             
         # 创建并配置RLBench环境
         self.env = Environment(
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=False,
-            # static_positions=True,
         )
             
         self.env.launch()
-        print("环境启动成功")
+        print("rlbench环境启动成功")
 
     def load_task(self):
         """加载指定的任务"""
@@ -188,7 +197,6 @@ class RLBenchProcessor:
         task_class,classname = self.task_file_to_task_class(self.taskname)
         print(f"加载任务类: {classname}")
         self.task = self.env.get_task(task_class)
-        print("任务加载成功")
 
     def save_demo_raw(self, demo, example_path, ex_idx):
         """
@@ -212,7 +220,7 @@ class RLBenchProcessor:
             camera_folder_depth.mkdir(parents=True, exist_ok=True)
             camera_folder_mask.mkdir(parents=True, exist_ok=True)
 
-        
+
         # 初始化数据存储
         state_data = {}
         
@@ -307,7 +315,6 @@ class RLBenchProcessor:
 
                 if mask_img is not None:
 
-
                     # 处理掩码图像
                     # 创建空白RGB图像
                     mask_array = mask_img
@@ -335,8 +342,7 @@ class RLBenchProcessor:
 
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
-        import gc  # 导入垃圾回收模块
-
+        
         # 创建保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
 
@@ -351,11 +357,16 @@ class RLBenchProcessor:
         self._check_and_make(variation_path)
 
 
-        if self.static_positions == True:
+        config_save_path = os.path.join(variation_path, "data_sampler_config.yaml")
+        with open(config_save_path, 'w') as f:
+            yaml.dump(self.data_sampler_config, f, default_flow_style=False)
+    
+        print(f"本次运行配置已保存到: {config_save_path}")
 
+        if self.static_positions == True:
+            print("静态位置模式")
             # 环境状态保存路径
             env_state_path = os.path.join(variation_path, "initial_state.pickle")
-            
             # 检查环境状态文件是否已存在
             if os.path.exists(env_state_path):
                 print(f"找到已存在的环境状态文件: {env_state_path}")
@@ -770,7 +781,7 @@ class RLBenchProcessor:
         # 获取所有子文件夹（epoch）
         epoch_folders = []
         for item in os.listdir(self.data_path):
-            item_path = os.path路径.join(self.data_path, item)
+            item_path = os.path.join(self.data_path, item)
             # 只处理文件夹且确保有state.json文件
             if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, 'state.json')):
                 epoch_folders.append(item)
@@ -804,12 +815,12 @@ class RLBenchProcessor:
             self.setup_environment()
             self.load_task()
             
-            if self.mode == 1:
-                print("以轨迹复现模式运行...")
-                self.process_all_epochs()
-            elif self.mode == 0:
+            if self.mode == 0:
                 print("以数据采样模式运行...")
                 self.collect_and_save_demos()
+            elif self.mode == 1:
+                print("以轨迹复现模式运行...")
+                self.process_all_epochs()
             elif self.mode == 2:
                 print("以评估模式运行...")
                 self.act_eval()
@@ -821,10 +832,9 @@ class RLBenchProcessor:
 
 
 if __name__ == "__main__":
-    # 创建并运行处理器
 
-    # 在程序开始处添加
-    seed = int(time.time()) # 使用当前时间作为种子
+    # 使用当前时间作为种子
+    seed = int(time.time()) 
     np.random.seed(seed)
     random.seed(seed)
     print(f"使用随机种子: {seed}")
