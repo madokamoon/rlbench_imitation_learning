@@ -1,41 +1,28 @@
 # 0 采样 1 重现 2 评估
-mode: 1 
+mode: 1
 
 
-# ------------------ 0 采样 ------------------ 
+# ------------------ 采样 重现 数据转换  ------------------ 
 data_sampler_config:
-# 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
+# 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: '20demos_static'
-
-  # 演示数量
-  num_demos: 20
-  # 图像尺寸
+  save_path_end: '111'
+  num_demos: 2
   image:
     width: 640
     height: 480
-  # 启用的相机
   cameras:
     - 'front_camera'
     - 'wrist_camera'
-    - 'left_shoulder_camera'
-    - 'right_shoulder_camera'
+    # - 'left_shoulder_camera'
+    # - 'right_shoulder_camera'
     - 'overhead_camera'
   # 启用后所有demo的初始物体位置一样
   static_positions: True
 
 
-#  ------------------ 1 重现 ------------------ 
-data_path: &raw_data_path 'data/pick_and_lift/20demos_static'
-
-
-# ------------------data_proccess.py------------------
-src_path: *raw_data_path
-
-
-
-#  ------------------ 2 训练/评估 ------------------  
+# ------------------ 训练/评估 ------------------  
 act_policy:
   'eval': true
   'ckpt_dir': 'training/pick_and_lift/20demos_hdf5_4_4000_rgb'

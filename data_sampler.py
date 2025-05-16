@@ -49,14 +49,22 @@ class RLBenchProcessor:
         self.camera_names = self.data_sampler_config['cameras']
         self.static_positions = self.data_sampler_config['static_positions']
 
-        if self.mode == 1:
-            self.data_path = self.config['data_path']
 
-        elif self.mode == 2:
+        # 保存路径
+        task_path = os.path.join(self.save_path_head, self.taskname)
+        if self.save_path_end == "":
+            now_time = datetime.datetime.now()
+            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+            self.variation_path = os.path.join(task_path, str_time) 
+            self.save_path_end = str_time
+        else:
+            self.variation_path = os.path.join(task_path, self.save_path_end)
+   
+        if self.mode == 2:
             self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
             self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
 
-        # 初始化环境和任务相关变量
+
         self.env = None
         self.task = None
         self.obs_config = None
@@ -339,66 +347,66 @@ class RLBenchProcessor:
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
         
-        # 创建保存路径
-        task_path = os.path.join(self.save_path_head, self.taskname)
-
-        if self.save_path_end == "":
-            now_time = datetime.datetime.now()
-            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-            variation_path = os.path.join(task_path, str_time) 
-            self.save_path_end = str_time
-        else:
-            variation_path = os.path.join(task_path, self.save_path_end)
-
-        self._check_and_make(variation_path)
 
 
-        config_save_path = os.path.join(variation_path, "data_sampler_config.yaml")
+        self._check_and_make(self.variation_path)
+
+
+        config_save_path = os.path.join(self.variation_path, "data_sampler_config.yaml")
         with open(config_save_path, 'w') as f:
             yaml.dump(self.data_sampler_config, f, default_flow_style=False)
     
         print(f"本次运行配置已保存到: {config_save_path}")
 
         if self.static_positions == True:
-            print("静态位置模式:获取一个标准初始环境")
-            env_state_path = os.path.join(variation_path, "initial_state.pickle")
-            descriptions, obs = self.task.reset()
+
+            print("静态位置模式")
+            # 环境状态保存路径
+            env_state_path = os.path.join(self.variation_path, "initial_state.pickle")
+            descriptions, first_obs = self.task.reset()
             random_state = random.getstate()
             numpy_state = np.random.get_state()
             reference_demo = self.task.get_demos(1, live_demos=True)[0]
-            
+            # 只保留第一个观察
+            if len(reference_demo._observations) > 1:
+                first_obs = reference_demo._observations[0]
+                reference_demo._observations = [first_obs]
+            # 保存环境信息
             env_info = {
                 'descriptions': descriptions,
                 'random_state': random_state,
                 'numpy_state': numpy_state,
-                'reference_demo': reference_demo, 
+                'reference_demo': reference_demo,  # 保存参考演示对象
                 'timestamp': datetime.datetime.now().isoformat()
             }
-
             with open(env_state_path, 'wb') as f:
                 pickle.dump(env_info, f)
             
             print(f"初始环境配置已保存到: {env_state_path}")
 
-            # 加载该文件
             del reference_demo
-            reference_demo = self.load_reference_demo()
+            gc.collect() 
+
+            reference_demo, random_state, numpy_state = self.load_reference_demo()
 
         # 逐个收集和保存demo
         for i in range(self.num_demos):
             print(f'收集和保存演示 {i}/{self.num_demos}')
             
             if self.static_positions == True:
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
                 self.task.reset_to_demo(reference_demo)
-                descriptions, obs = self.task.reset()
+                # descriptions, obs = self.task.reset()   # 收集的时候不能加上这句，其他情况需要加上，原因不明
             else:
-                descriptions, obs = self.task.reset()
+                pass
+                # descriptions, obs = self.task.reset()
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
             
             # 保存这个demo
-            self.save_demo_raw(demo, variation_path, i)
+            self.save_demo_raw(demo, self.variation_path, i)
             
             # 显式释放内存
             del demo
@@ -549,9 +557,7 @@ class RLBenchProcessor:
         random_state = None
         numpy_state = None
 
-        task_path = os.path.join(self.save_path_head, self.taskname)
-        variation_path = os.path.join(task_path, self.save_path_end)
-        env_state_path = os.path.join(variation_path, "initial_state.pickle")
+        env_state_path = os.path.join(self.variation_path, "initial_state.pickle")
         if env_state_path and os.path.exists(env_state_path):
             print(f"加载环境状态数据: {env_state_path}")
             try:
@@ -561,14 +567,11 @@ class RLBenchProcessor:
                 # 获取存储的状态
                 random_state = env_info.get('random_state')
                 numpy_state = env_info.get('numpy_state')
-                random.setstate(random_state)
-                np.random.set_state(numpy_state)
-
                 reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
                 descriptions = env_info.get('descriptions')
                 
                 print(f"成功加载环境状态，描述: {descriptions}")
-                return reference_demo
+                return reference_demo,random_state,numpy_state
         
             except Exception as e:
                 print(f"加载环境状态失败: {e}")
@@ -594,7 +597,7 @@ class RLBenchProcessor:
         attempt = 0
         
         if self.static_positions == True:
-            reference_demo = self.load_reference_demo()
+            reference_demo,random_state,numpy_state = self.load_reference_demo()
 
         try:
             while attempt < max_attempts:
@@ -602,8 +605,12 @@ class RLBenchProcessor:
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
                 if self.static_positions == True:
+                    random.setstate(random_state)
+                    np.random.set_state(numpy_state)
                     self.task.reset_to_demo(reference_demo)
                     descriptions, obs = self.task.reset()
+
+
                 else:
                     descriptions, obs = self.task.reset()
 
@@ -718,15 +725,15 @@ class RLBenchProcessor:
 
     def process_all_epochs(self):
         """处理所有的epoch（遍历数据文件夹中的所有子文件夹）"""
-        print(f"处理来自路径的所有轨迹: {self.data_path}")
+        print(f"处理来自路径的所有轨迹: {self.variation_path}")
         
         # 检查基础路径是否存在
-        self._check_path_exists(self.data_path)
+        self._check_path_exists(self.variation_path)
         
         # 获取所有子文件夹（epoch）
         epoch_folders = []
-        for item in os.listdir(self.data_path):
-            item_path = os.path.join(self.data_path, item)
+        for item in os.listdir(self.variation_path):
+            item_path = os.path.join(self.variation_path, item)
             # 只处理文件夹且确保有state.json文件
             if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, 'state.json')):
                 epoch_folders.append(item)
@@ -735,27 +742,26 @@ class RLBenchProcessor:
         epoch_folders = sorted(epoch_folders, key=lambda x: int(x) if x.isdigit() else float('inf'))
         
         if not epoch_folders:
-            print(f"警告: 在 {self.data_path} 中未找到有效的轨迹数据")
+            print(f"警告: 在 {self.variation_path} 中未找到有效的轨迹数据")
             return
             
         print(f"找到 {len(epoch_folders)} 个轨迹")
         
 
         if self.static_positions == True:
-            reference_demo = self.load_reference_demo()
-
-
-
+            reference_demo, random_state, numpy_state = self.load_reference_demo()
 
         # 遍历执行每个epoch
         for epoch in epoch_folders:
-            epoch_path = os.path.join(self.data_path, epoch)
+            epoch_path = os.path.join(self.variation_path, epoch)
             print(f"\n处理轨迹: {epoch_path}")
             
             # 加载轨迹
             trajectory_data = self.load_trajectory(epoch_path)
             
             if self.static_positions == True:
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
                 self.task.reset_to_demo(reference_demo)
                 descriptions, obs = self.task.reset()
             else:

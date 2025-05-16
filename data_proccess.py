@@ -10,18 +10,21 @@ import os
 import h5py
 from PIL import Image
 import glob
+import time, datetime
 
 # 导入权重计算函数
 from weight import calculate_change_weight
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
         self.datas = {}
         self.record_path = ""
         self.prev_frames = {}  # 存储前一帧的图像
+        self.image_width = image_width
+        self.image_height = image_height
         
     def convert(self):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -122,9 +125,9 @@ class RawToHDF5Converter:
                     img = Image.open(img_path)
                     
                     # 检查图像尺寸，如果不是480x640就调整
-                    if img.size != (640, 480):
-                        img = img.resize((640, 480))
-                    
+                    if img.size != (self.image_width, self.image_height):
+                        img = img.resize((self.image_width, self.image_height))
+
                     # 转换为numpy数组
                     img_array = np.array(img)
                     self.datas[f'/observations/images/{cam_name}'].append(img_array)
@@ -193,9 +196,8 @@ class RawToHDF5Converter:
             image = obs.create_group('images')
             print("self.camera_names",self.camera_names)
             for cam_name in self.camera_names:
-                _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), 
-                                        dtype='uint8', chunks=(1, 480, 640, 3))
-                
+                _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
+                                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
             # 创建权重组
             weight = obs.create_group('weight')
             
@@ -235,10 +237,31 @@ def main(config_path='data_sampler.yaml'):
         config = yaml.safe_load(f)
 
     # 从配置中获取参数
-    src_path = config.get('src_path')
+
+
+    # 从配置中获取参数
+    data_sampler_config = config.get('data_sampler_config', {})
+    save_path_head = data_sampler_config['save_path_head']
+    save_path_end = data_sampler_config['save_path_end']
+    taskname = data_sampler_config['taskname']
+
+    image_width = data_sampler_config['image']['width']
+    image_height = data_sampler_config['image']['height']
+    # self.camera_names = data_sampler_config['cameras']  #处理全部rgb ，不依赖参数
+
+
+    # 保存路径
+    task_path = os.path.join(save_path_head, taskname)
+    if save_path_end == "":
+        now_time = datetime.datetime.now()
+        str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+        variation_path = os.path.join(task_path, str_time) 
+        save_path_end = str_time
+    else:
+        variation_path = os.path.join(task_path, save_path_end)
 
     rootpath = pathlib.Path(__file__).parent
-    input_path = rootpath.joinpath(src_path) 
+    input_path = rootpath.joinpath(variation_path) 
     output_path = input_path.parent.joinpath(input_path.name + "_hdf5")
 
     # 检查输入路径是否存在
@@ -261,7 +284,9 @@ def main(config_path='data_sampler.yaml'):
     print("根目录：", rootpath)
     print("输入路径：", input_path)
     print("输出路径：", output_path)
-    converter = RawToHDF5Converter(input_path, output_path)
+    converter = RawToHDF5Converter(input_path, output_path, 
+                                image_width=image_width, 
+                                image_height=image_height)
     converter.convert()
     print("----------转换完成----------")
 

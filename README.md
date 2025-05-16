@@ -212,7 +212,7 @@ pip install opencv-python
 
 ```bash
 # 在电脑和服务器间复制数据
-scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos/ haoyue@100.100.3.3:/home/haoyue/code/rlbench_imitation_learning/data/pick_and_lift
+scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos/ haoyue@100.100.3.3:~/code/rlbench_imitation_learning/data/pick_and_lift
 
-scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/training/pick_and_lift/50demosmask ~/python/rlbench_imitation_learning/training/pick_and_lift
+scp -r haoyue@100.100.3.3:~/code/rlbench_imitation_learning/training/pick_and_lift/20demos_static_hdf5_8_4000_fwo ~/python/rlbench_imitation_learning/training/pick_and_lift
 ```
