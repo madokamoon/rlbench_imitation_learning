@@ -1,5 +1,5 @@
 # 0 采样 1 重现 2 评估
-mode: 1
+mode: 2
 
 
 # ------------------ 采样 重现 数据转换  ------------------ 
@@ -7,7 +7,7 @@ data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: '111'
+  save_path_end: 'test'
   num_demos: 2
   image:
     width: 640
@@ -24,10 +24,18 @@ data_sampler_config:
 
 # ------------------ 训练/评估 ------------------  
 act_policy:
+  'task_config':
+    'dataset_dir': 'data/pick_and_lift/20demos_hdf5'
+    'episode_len': 200
+    # 'train_ratio': 0.95
+    # 'camera_names': ['wrist_camera', 'front_camera', 'overhead_camera']
+    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
+    # 'camera_names': ['front_camera']
+    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
   'eval': true
-  'ckpt_dir': 'training/pick_and_lift/20demos_hdf5_4_4000_rgb'
+  'ckpt_dir': 'training/pick_and_lift/20demos_static_hdf5_8_4000_fwo'
   'ckpt_name': 'policy_best.ckpt'
-  # 'ckpt_name': 'policy_step_1500_seed_0.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false
   "task_name": "pick_and_lift"
@@ -57,15 +65,7 @@ act_policy:
   'temporal_agg': true
   # 'temporal_agg': false
   'load_pretrain': false
-  'task_config':
-    'dataset_dir': 'data/pick_and_lift/20demos_hdf5'
-    'episode_len': 200
-    # 'train_ratio': 0.95
-    'camera_names': ['wrist_camera', 'front_camera', 'overhead_camera']
-    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
-    # 'camera_names': ['front_camera']
-    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
-    # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+
   
 
 
