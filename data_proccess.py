@@ -45,20 +45,14 @@ class RawToHDF5Converter:
             for f in os.listdir(folder_path):
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
-                        pass
-                        # self.camera_names_depth.append(f)
+                        pass # 不转换深度图像
+                        # self.camera_names.append(f)
                     elif f.endswith('mask'):
                         self.camera_names.append(f)
                     elif f.endswith('camera'):
                         self.camera_names.append(f)
                         
-            
-            # 处理深度摄像头图像
-            # self.process_depth_images(folder_path)
-            # 处理掩码摄像头图像
-            # self.process_mask_images(folder_path)
-
-            
+    
             # 初始化数据字典
             self.datas = {
                 '/observations/qpos': [],
@@ -232,92 +226,6 @@ class RawToHDF5Converter:
                 if array:  # 只处理非空数据
                     root[name][...] = np.array(array)
 
-    def process_depth_images(self, folder_path):
-        """
-        处理深度图像，将其转换为RGB格式并保存到新文件夹
-        """
-        for depth_cam in self.camera_names_depth:
-            # 创建新文件夹名
-            new_folder_name = depth_cam + "_2"
-            new_folder_path = os.path.join(folder_path, new_folder_name)
-            
-            # 创建新文件夹
-            if not os.path.exists(new_folder_path):
-                os.makedirs(new_folder_path)
-                print(f"创建文件夹: {new_folder_path}")
-            
-            # 处理所有深度图像
-            depth_folder_path = os.path.join(folder_path, depth_cam)
-            img_files = [f for f in os.listdir(depth_folder_path) if f.endswith('.png')]
-            
-            print(f"正在处理深度摄像头 {depth_cam} 的 {len(img_files)} 张图像...")
-            
-            for img_file in tqdm.tqdm(img_files, desc=f"处理深度图像 {depth_cam}"):
-                img_path = os.path.join(depth_folder_path, img_file)
-                
-                # 读取深度图像为灰度图
-                depth_img = Image.open(img_path).convert('L')
-                
-                # 检查图像尺寸，如果不是480x640就调整
-                if depth_img.size != (640, 480):
-                    depth_img = depth_img.resize((640, 480))
-                
-                # 将灰度图转换为3通道RGB图像
-                rgb_img = Image.merge('RGB', [depth_img, depth_img, depth_img])
-                
-                # 保存到新文件夹
-                rgb_img.save(os.path.join(new_folder_path, img_file))
-            
-            # 将新文件夹添加到普通摄像头列表，这样会自动将其包含在HDF5输出中
-            self.camera_names.append(new_folder_name)
-
-    def process_mask_images(self, folder_path):
-        """
-        处理掩码图像，将其转换为RGB格式并保存到新文件夹
-        """
-        for mask_cam in self.camera_names_mask:
-            # 创建新文件夹名
-            new_folder_name = mask_cam + "_rgb"
-            new_folder_path = os.path.join(folder_path, new_folder_name)
-            
-            # 创建新文件夹
-            if not os.path.exists(new_folder_path):
-                os.makedirs(new_folder_path)
-                print(f"创建文件夹: {new_folder_path}")
-            
-            # 处理所有掩码图像
-            mask_folder_path = os.path.join(folder_path, mask_cam)
-            img_files = [f for f in os.listdir(mask_folder_path) if f.endswith('.png')]
-            
-            for img_file in tqdm.tqdm(img_files, desc=f"处理掩码图像 {mask_cam}"):
-                img_path = os.path.join(mask_folder_path, img_file)
-                
-                # 读取掩码图像为灰度图
-                mask_img = Image.open(img_path).convert('L')
-                
-                # 检查图像尺寸，如果不是480x640就调整
-                if mask_img.size != (640, 480):
-                    mask_img = mask_img.resize((640, 480))
-                
-                # 将灰度图转换为numpy数组以便处理
-                mask_array = np.array(mask_img)
-                
-                # 创建空白RGB图像
-                rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
-                
-                # 根据灰度值设置不同的RGB值
-                rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
-                rgb_array[mask_array == 84, 1] = 255
-                rgb_array[mask_array == 83, 2] = 255
-
-                # 转换为PIL图像
-                rgb_img = Image.fromarray(rgb_array)
-                
-                # 保存到新文件夹
-                rgb_img.save(os.path.join(new_folder_path, img_file))
-            
-            # 将新文件夹添加到普通摄像头列表，这样会自动将其包含在HDF5输出中
-            self.camera_names.append(new_folder_name)
 
 
 def main(config_path='data_sampler.yaml'):
@@ -344,11 +252,8 @@ def main(config_path='data_sampler.yaml'):
             import shutil
             shutil.rmtree(output_path)
             print(f"已删除现有目录: {output_path}")
-        elif user_input.lower() == 'n':
-            print("操作已取消")
-            return
         else:
-            print("无效输入，操作已取消")
+            print("操作已取消")
             return
     
     output_path.mkdir(parents=True, exist_ok=True)

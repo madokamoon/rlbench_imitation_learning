@@ -113,8 +113,6 @@ data_sampler.yaml：集成采集，重现，转换，训练，测试的配置
 
 data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
 
-> 数据重现指利用收集的数据在rlbench中重现动作，暂未保存物体初始摆放位置，仅重现动作
-
 data_proccess.py ：数据转换功能，转换为hdf5同时计算权重
 
 act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
@@ -130,14 +128,17 @@ weight_visualization.py ：权重可视化
 
 配置文件中的`taskname` 的可用任务名称参见 `RLBench/rlbench/tasks` 文件夹
 
-目前发现 pick_and_lift 和实际任务最相似
-
 ```bash
 python data_sampler.py
 ```
 保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳`
 
 ## data_proccess.py 数据重现
+
+利用收集的数据在rlbench中重现动作，如果不是静态模式，仅重现动作
+
+如果是静态模式，会加载 initial_state.pickle 文件
+ 
 ```bash
 python data_proccess.py
 ```
@@ -185,6 +186,8 @@ python data_sampler.py
 
 
 
+
+
 ## rlbench 不能与 cv2 同时使用
 
 否则会报错：
@@ -209,7 +212,7 @@ pip install opencv-python
 
 ```bash
 # 在电脑和服务器间复制数据
-scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos_hdf5/ haoyue@100.100.3.3:/home/haoyue/code/rlbench_imitation_learning/data/pick_and_lift
+scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos/ haoyue@100.100.3.3:/home/haoyue/code/rlbench_imitation_learning/data/pick_and_lift
 
 scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/training/pick_and_lift/50demosmask ~/python/rlbench_imitation_learning/training/pick_and_lift
 ```

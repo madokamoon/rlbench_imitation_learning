@@ -432,17 +432,11 @@ class RLBenchProcessor:
             print(f'收集和保存演示 {i}/{self.num_demos}')
             
             if self.static_positions == True:
-                # 恢复随机数状态以确保一致的环境
-                print(f"恢复随机数状态...")
+                print(f"静态位置模式：恢复环境状态")
                 random.setstate(random_state)
                 np.random.set_state(numpy_state)
-                
-                # 重置任务并恢复到与参考演示相同的初始状态
-                print(f"重置环境到初始状态...")
                 self.task.reset_to_demo(reference_demo)
-                
-                # 获取demo
-                print(f"执行演示 {i}...")
+
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
@@ -453,8 +447,6 @@ class RLBenchProcessor:
             # 显式释放内存
             del demo
             gc.collect()  
-
-        print(f'数据集已保存到 {variation_path}')
 
     def load_trajectory(self, trajectory_path):
         """
@@ -483,16 +475,13 @@ class RLBenchProcessor:
             trajectory_data: 包含机械臂轨迹的字典
             epoch_idx: 当前epoch的索引
         """
-        # 重置任务
-        print("重置任务...")
-        descriptions, obs = self.task.reset()
-        print("任务描述: ", descriptions)
-        
+
         # 按顺序执行轨迹
         print(f"开始执行轨迹 (Epoch {epoch_idx})...")
         trajectory_keys = sorted([int(k) for k in trajectory_data.keys()])
         
         for t in tqdm(trajectory_keys, desc=f"Epoch {epoch_idx} 执行进度"):
+
             frame_data = trajectory_data[str(t)]
             
             # 提取末端位姿和夹爪动作
@@ -587,11 +576,14 @@ class RLBenchProcessor:
 
 
         import copy
-        # 提取机器人状态
-        robot_state = list(obs.joint_positions)  # 关节位置
-        robot_state.append(float(1 - obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
-        robot_state = list(copy.deepcopy(obs.gripper_pose))  # 关节位置
-        robot_state.append(copy.deepcopy(obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
+
+        # 关节控制
+        # robot_state = list(copy.deepcopy(obs.joint_positions)) 
+        # robot_state.append(copy.deepcopy(obs.gripper_open))  
+
+        # 末端位姿控制
+        robot_state = list(copy.deepcopy(obs.gripper_pose)) 
+        robot_state.append(copy.deepcopy(obs.gripper_open)) 
 
         return imgdata, robot_state
 
@@ -653,17 +645,15 @@ class RLBenchProcessor:
                 
                 if self.static_positions == True:
                     print("恢复到保存的初始环境状态...")
-                    # 恢复随机数状态
                     random.setstate(random_state)
                     np.random.set_state(numpy_state)
-                    
-                    # 恢复到参考演示的初始状态
                     self.task.reset_to_demo(reference_demo)
                     _, obs = self.task.reset()
                 else:
                     descriptions, obs = self.task.reset()
-                    self.act_policy.reset()
-                
+
+
+                self.act_policy.reset()
                 # 用于存储上一帧的图像
                 prev_images = None
                 
@@ -795,6 +785,41 @@ class RLBenchProcessor:
             
         print(f"找到 {len(epoch_folders)} 个轨迹")
         
+
+        if self.static_positions == True:
+                     # 加载环境状态数据
+            reference_demo = None
+            random_state = None
+            numpy_state = None
+
+            task_path = os.path.join(self.save_path_head, self.taskname)
+            variation_path = os.path.join(task_path, self.save_path_end)
+            env_state_path = os.path.join(variation_path, "initial_state.pickle")
+            if env_state_path and os.path.exists(env_state_path):
+                print(f"加载环境状态数据: {env_state_path}")
+                try:
+                    with open(env_state_path, 'rb') as f:
+                        env_info = pickle.load(f)
+                
+                    # 获取存储的状态
+                    random_state = env_info.get('random_state')
+                    numpy_state = env_info.get('numpy_state')
+                    reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
+                    descriptions = env_info.get('descriptions')
+                    
+                    print(f"成功加载环境状态，描述: {descriptions}")
+                    
+                    if reference_demo is None:
+                        # 如果没有保存参考演示，则获取新的
+                        print("未找到保存的参考演示")
+                    else:
+                        print("已加载保存的参考演示，无需重新获取")
+            
+                except Exception as e:
+                    print(f"加载环境状态失败: {e}")
+                    env_state_path = None
+
+
         # 遍历执行每个epoch
         for epoch in epoch_folders:
             epoch_path = os.path.join(self.data_path, epoch)
@@ -803,6 +828,15 @@ class RLBenchProcessor:
             # 加载轨迹
             trajectory_data = self.load_trajectory(epoch_path)
             
+            if self.static_positions == True:
+                print("恢复到保存的初始环境状态...")
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
+                self.task.reset_to_demo(reference_demo)
+                _, obs = self.task.reset()
+            else:
+                descriptions, obs = self.task.reset()
+
             # 执行轨迹
             self.execute_trajectory(trajectory_data, epoch)
             
