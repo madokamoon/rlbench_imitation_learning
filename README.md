@@ -3,13 +3,14 @@
 使用 RLBench 收集模仿学习数据 
 
 参考资料
+
 [GitHub - RLBench](https://github.com/stepjam/RLBench)
 
 [CoppeliaSim Doc](https://manual.coppeliarobotics.com/index.html)
 
 [GitHub - Boxjod/RLBench_ACT](https://github.com/Boxjod/RLBench_ACT)
 
-# 环境配置
+# 一、环境配置
 
 ## 安装CoppeliaSim
 
@@ -31,11 +32,13 @@ coppeliaSim.sh
 ```
 ## 安装RLBench
 
-启用一个IL算法conda环境，无python版本要求
+启用一个IL算法conda环境，无python版本要求，这里启用下面创建的 rlact
 ```
 conda activate rlact
 ```
 使用pip安装到`site-packages`，并非安装本项目的RLbench文件夹
+
+本项目的RLbench文件夹无用，仅方便参考
 ```
 pip install git+https://github.com/stepjam/RLBench.git
 ```
@@ -44,8 +47,46 @@ pip install git+https://github.com/stepjam/RLBench.git
 python RLBench/tools/task_builder.py
 ```
 
+## 安装act-plus
 
-# 收集数据
+参考：[GitHub - MarkFzp/act-plus-plus:](https://github.com/MarkFzp/act-plus-plus.git)
+```shell
+
+conda create -n rlact python=3.8.10 
+conda activate rlact
+
+pip install torchvision
+pip install torch
+pip install pyquaternion
+pip install pyyaml
+pip install rospkg
+pip install pexpect
+pip install mujoco==2.3.7
+pip install dm_control==1.0.14
+pip install opencv-python
+pip install matplotlib
+pip install einops
+pip install packaging
+pip install h5py
+pip install ipython
+
+pip install typeguard pyyaml
+pip install wandb
+
+cd act-plus-plus/detr/
+pip install -e .
+
+
+# 安装以下内容以运行act-plus中的 Diffusion Policy 但是安装后 numpy 版本冲突 暂不安装
+# git clone https://githubfast.com/ARISE-Initiative/robomimic --recurse-submodules
+# git checkout r2d2
+# pip install -e .
+```
+
+
+
+
+# 二、使用说明
 
 ## 不要在 GUI 中保存
 **不要在 Coppeliasim 的 GUI 中保存代码** ，无论是使用 Ctrl+S 还是在关闭窗口时在弹出窗口中确认 “Did you save changes？”在 GUI 中保存场景可能会导致缺少组件，并导致后续执行中出现错误。例如：
@@ -53,69 +94,103 @@ python RLBench/tools/task_builder.py
 `"RuntimeError: Handle cam_head_mask does not exist"`
 
 如果不小心保存了更改，请使用本项目的`task_design.ttt`替换conda环境中的`task_design.ttt `
+
+例如我的环境为 `/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages`
+
+项目路径为 `/home/madoka/python/rlbench_imitation_learning`
+
+则运行以下命令：
+
 ```bash
-# 例如我的环境为 /home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages
-# 项目路径为 /home/madoka/python/rlbench_imitation_learning
 cd /home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/rlbench
 rm task_design.ttt 
 cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.ttt task_design.ttt 
 ```
 
-## 选择任务
+## 文件说明
 
-参见 `RLBench/rlbench/tasks` 文件夹
+data_sampler.yaml：集成采集，重现，转换，训练，测试的配置
 
-例如：选择 `put_rubbish_in_bin.py` 查看其中任务类名称为 `PutRubbishInBin`
+data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
 
-填入`data_sampler_hdf5.yaml`中的`taskclassname`
+data_proccess.py ：数据转换功能，转换为hdf5同时计算权重
 
-## 选择观测参数
+act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
 
-`data_sampler.yaml`支持配置
-- 图像大小
-- 启用的相机
+weight.py ：互信息计算
 
-逐个demo保存并释放内存，能支持一个demo的内存即可
+weight_visualization.py ：权重可视化
 
-更多ObservationConfig 可配置参数：
-
-| 属性名                       | 类型             | 说明                  |
-| ------------------------- | -------------- | ------------------- |
-| `front_camera`            | `CameraConfig` | 前置摄像头配置（RGB/深度/分割等） |
-| `left_shoulder_camera`    | `CameraConfig` | 左肩摄像头配置             |
-| `right_shoulder_camera`   | `CameraConfig` | 右肩摄像头配置             |
-| `overhead_camera`         | `CameraConfig` | 俯视摄像头配置             |
-| `wrist_camera`            | `CameraConfig` | 手腕摄像头配置             |
-| `wrist_camera_matrix`     | `bool`         | 是否返回手腕摄像头的 4x4 变换矩阵 |
-| `gripper_open`            | `bool`         | 返回夹爪是否张开（开/合）       |
-| `gripper_pose`            | `bool`         | 返回夹爪的世界位姿（位置 + 方向）  |
-| `gripper_joint_positions` | `bool`         | 返回夹爪的各个关节角度         |
-| `gripper_matrix`          | `bool`         | 返回夹爪的 4x4 变换矩阵      |
-| `gripper_touch_forces`    | `bool`         | 返回夹爪的触觉接触力量         |
-| `joint_positions`         | `bool`         | 返回机械臂的各个关节位置        |
-| `joint_velocities`        | `bool`         | 返回机械臂的各个关节速度        |
-| `joint_forces`            | `bool`         | 返回机械臂的各个关节受力（力矩）    |
-| `joint_positions_noise`   | `NoiseModel`   | 对关节位置加入噪声的模型        |
-| `joint_velocities_noise`  | `NoiseModel`   | 对关节速度加入噪声的模型        |
-| `joint_forces_noise`      | `NoiseModel`   | 对关节力加入噪声的模型         |
-| `task_low_dim_state`      | `bool`         | 是否返回任务的低维状态（手工特征）   |
-| `record_gripper_closing`  | `bool`         | 是否记录夹爪闭合过程（用于数据集生成） |
+> weight_distribution 相关的 mp4 gif png 四个文件是一个例子，weight使用每个视角的mask进行计算
 
 
-## 收集数据
+## mode=0 数据收集
+
+配置文件中的`taskname` 的可用任务名称参见 `RLBench/rlbench/tasks` 文件夹
 
 ```bash
 python data_sampler.py
 ```
-## 可视化
+保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳`
+
+## data_proccess.py 数据重现
+
+利用收集的数据在rlbench中重现动作，如果不是静态模式，仅重现动作
+
+如果是静态模式，会加载 initial_state.pickle 文件
+ 
+```bash
+python data_proccess.py
+```
+## mode=1 数据转换
+```bash
+python data_sampler.py
+```
+保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳_hdf5`
+
+## 可视化 
+
+使用act自带的功能，支持任意维度和任意数量相机
+
 ```bash
 python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
 ```
 
+使用 https://myhdf5.hdfgroup.org/ 网页工具
 
-## 问题
+使用 tools，但tools只支持六维机械臂和三个相机
 
-rlbench 不能与 cv2 同时使用，否则会报错：
+## imitate_episodes.py 训练 
+
+配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`
+
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_rgb --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
+
+```
+
+
+## mode=2 仿真测试
+
+配置依赖  `data_sampler.yaml 中 的 ['act_policy']`
+
+```bash
+python data_sampler.py
+```
+
+
+# 三、其他
+
+## 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
+
+
+
+
+
+## rlbench 不能与 cv2 同时使用
+
+否则会报错：
 
 ```bash
 qt.qpa.plugin: Could not find the Qt platform plugin "xcb" in "/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/cv2/qt/plugins"
@@ -132,7 +207,12 @@ pip uninstall opencv-python-headless
 pip install opencv-python
 ```
 
-# ACT
 
-[ACTPLUS.md](act-plus-plus/ACTPLUS.md)
+## 常用指令
 
+```bash
+# 在电脑和服务器间复制数据
+scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos/ haoyue@100.100.3.3:/home/haoyue/code/rlbench_imitation_learning/data/pick_and_lift
+
+scp -r -P 2122 haoyue@service.qich.top:/home/haoyue/python/rlbench_imitation_learning/training/pick_and_lift/50demosmask ~/python/rlbench_imitation_learning/training/pick_and_lift
+```

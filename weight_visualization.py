@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from tqdm import tqdm
 import imageio
-from hxxcopy import calculate_image_weights  # 导入原有的权重计算函数
+from weight import calculate_image_weights  # 导入原有的权重计算函数
 
 def calculate_multi_view_weights(root_folder, camera_dirs=['front_camera', 'wrist_camera', 'overhead_camera'], 
                                 alpha=0.5, beta=0.5):

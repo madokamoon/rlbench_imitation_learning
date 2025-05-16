@@ -11,6 +11,8 @@ import h5py
 from PIL import Image
 import glob
 
+# 导入权重计算函数
+from weight import calculate_change_weight
 
 class RawToHDF5Converter:
     def __init__(self, input_path, output_path):
@@ -19,6 +21,7 @@ class RawToHDF5Converter:
         self.camera_names = []
         self.datas = {}
         self.record_path = ""
+        self.prev_frames = {}  # 存储前一帧的图像
         
     def convert(self):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -42,30 +45,31 @@ class RawToHDF5Converter:
             for f in os.listdir(folder_path):
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
-                        pass
-                        # self.camera_names_depth.append(f)
+                        pass # 不转换深度图像
+                        # self.camera_names.append(f)
                     elif f.endswith('mask'):
                         self.camera_names.append(f)
                     elif f.endswith('camera'):
                         self.camera_names.append(f)
                         
-            
-            # 处理深度摄像头图像
-            # self.process_depth_images(folder_path)
-            # 处理掩码摄像头图像
-            # self.process_mask_images(folder_path)
-
-            
+    
             # 初始化数据字典
             self.datas = {
                 '/observations/qpos': [],
-                # '/observations/qvel': [],
                 '/action': [],
+                # 添加三个新的数据项
+                '/observations/robot_joint_state': [],
+                '/observations/robot_joint_vel': [],
+                '/robot_joint_action': [],
             }
             
-            # 为每个摄像头创建数据项
+            # 为每个摄像头创建数据项和权重项
             for cam_name in self.camera_names:
                 self.datas[f'/observations/images/{cam_name}'] = []
+                self.datas[f'/observations/weight/{cam_name}'] = []  # 初始化权重列表
+            
+            # 重置前一帧图像
+            self.prev_frames = {}
             
             # 读取状态文件
             json_path = os.path.join(folder_path, 'state.json')
@@ -90,7 +94,7 @@ class RawToHDF5Converter:
             
             print(f"处理 {frame_count} 帧数据...")
             
-            # 处理每一帧数据
+            # 在处理每一帧数据的循环中，修改权重计算部分
             for frame_idx_str in tqdm.tqdm(sorted(json_data.keys(), key=lambda x: int(x)), 
                                      desc=f"处理文件夹 {folder_name}", 
                                      total=frame_count):
@@ -100,6 +104,12 @@ class RawToHDF5Converter:
                 # 添加机器人状态和抓取状态
                 self.datas['/observations/qpos'].append(jsondata["robot_state"] + [jsondata['grasp_state'][0]])
                 self.datas['/action'].append(jsondata['robot_action'] + [jsondata['grasp_action'][0]])
+                self.datas['/observations/robot_joint_state'].append(jsondata["robot_joint_state"] + [jsondata['grasp_state'][0]])
+                self.datas['/observations/robot_joint_vel'].append(jsondata["robot_joint_vel"])
+                self.datas['/robot_joint_action'].append(jsondata["robot_joint_action"] + [jsondata['grasp_action'][0]]) 
+                
+                # 临时存储该帧所有摄像头的原始权重
+                frame_weights = {}
                 
                 # 处理每个摄像头的图像
                 for cam_name in self.camera_names:
@@ -113,12 +123,51 @@ class RawToHDF5Converter:
                     
                     # 检查图像尺寸，如果不是480x640就调整
                     if img.size != (640, 480):
-                        # print(f"调整图像尺寸从 {img.size} 到 (640, 480)",end='\r')
                         img = img.resize((640, 480))
                     
                     # 转换为numpy数组
                     img_array = np.array(img)
                     self.datas[f'/observations/images/{cam_name}'].append(img_array)
+                    
+                    # 计算权重（与前一帧比较）
+                    if frame_idx > 0 and cam_name in self.prev_frames:
+                        # 计算当前帧与前一帧的变化权重
+                        weight = calculate_change_weight(self.prev_frames[cam_name], img_array)
+                    else:
+                        # 第一帧或无前一帧数据时，设置默认权重1.0
+                        weight = 1.0
+                    
+                    # 暂存权重
+                    frame_weights[cam_name] = weight
+                    
+                    # 更新前一帧图像
+                    self.prev_frames[cam_name] = img_array.copy()
+                
+                # 归一化权重，确保所有摄像头的平均权重为1
+                if frame_weights:
+                    # 将摄像头分为两组
+                    mask_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('mask')}
+                    camera_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('camera')}
+                    
+                    # 处理mask摄像头的权重 - 进行归一化
+                    if mask_cams:
+                        total_mask_weight = sum(mask_cams.values())
+                        mask_count = len(mask_cams)
+                        
+                        if total_mask_weight > 0:  # 避免除以零
+                            # 归一化公式：weight * 摄像头数量 / 总权重
+                            for cam_name, weight in mask_cams.items():
+                                norm_weight = weight * mask_count / total_mask_weight
+                                self.datas[f'/observations/weight/{cam_name}'].append(norm_weight)
+                        else:
+                            # 如果总权重为零，所有mask摄像头权重设为1
+                            for cam_name in mask_cams:
+                                self.datas[f'/observations/weight/{cam_name}'].append(1.0)
+
+                    # 处理camera摄像头的权重 - 全部设置为1
+                    for cam_name in camera_cams:
+                        self.datas[f'/observations/weight/{cam_name}'].append(1.0)
+
             
             # 设置输出文件路径
             self.record_path = os.path.join(self.output_path, f"episode_{folder_name}.hdf5")
@@ -146,102 +195,37 @@ class RawToHDF5Converter:
             for cam_name in self.camera_names:
                 _ = image.create_dataset(cam_name, (max_timesteps, 480, 640, 3), 
                                         dtype='uint8', chunks=(1, 480, 640, 3))
+                
+            # 创建权重组
+            weight = obs.create_group('weight')
             
+            # 创建权重数据集
+            for cam_name in self.camera_names:
+                _ = weight.create_dataset(cam_name, (max_timesteps,), dtype='float32')
+        
             # 修改维度
             qpos = obs.create_dataset('qpos', (max_timesteps, 8))
             qvel = obs.create_dataset('qvel', (max_timesteps, 8))
             action = root.create_dataset('action', (max_timesteps, 8))
             
+            # 创建三个新的数据集
+            if '/observations/robot_joint_state' in self.datas and self.datas['/observations/robot_joint_state']:
+                joint_dim = len(self.datas['/observations/robot_joint_state'][0])
+                robot_joint_state = obs.create_dataset('robot_joint_state', (max_timesteps, joint_dim))
+            
+            if '/observations/robot_joint_vel' in self.datas and self.datas['/observations/robot_joint_vel']:
+                joint_vel_dim = len(self.datas['/observations/robot_joint_vel'][0])
+                robot_joint_vel = obs.create_dataset('robot_joint_vel', (max_timesteps, joint_vel_dim))
+            
+            if '/robot_joint_action' in self.datas and self.datas['/robot_joint_action']:
+                joint_action_dim = len(self.datas['/robot_joint_action'][0])
+                robot_joint_action = root.create_dataset('robot_joint_action', (max_timesteps, joint_action_dim))
+            
             # 存入数据
             for name, array in self.datas.items():
-                root[name][...] = np.array(array)
+                if array:  # 只处理非空数据
+                    root[name][...] = np.array(array)
 
-    def process_depth_images(self, folder_path):
-        """
-        处理深度图像，将其转换为RGB格式并保存到新文件夹
-        """
-        for depth_cam in self.camera_names_depth:
-            # 创建新文件夹名
-            new_folder_name = depth_cam + "_2"
-            new_folder_path = os.path.join(folder_path, new_folder_name)
-            
-            # 创建新文件夹
-            if not os.path.exists(new_folder_path):
-                os.makedirs(new_folder_path)
-                print(f"创建文件夹: {new_folder_path}")
-            
-            # 处理所有深度图像
-            depth_folder_path = os.path.join(folder_path, depth_cam)
-            img_files = [f for f in os.listdir(depth_folder_path) if f.endswith('.png')]
-            
-            print(f"正在处理深度摄像头 {depth_cam} 的 {len(img_files)} 张图像...")
-            
-            for img_file in tqdm.tqdm(img_files, desc=f"处理深度图像 {depth_cam}"):
-                img_path = os.path.join(depth_folder_path, img_file)
-                
-                # 读取深度图像为灰度图
-                depth_img = Image.open(img_path).convert('L')
-                
-                # 检查图像尺寸，如果不是480x640就调整
-                if depth_img.size != (640, 480):
-                    depth_img = depth_img.resize((640, 480))
-                
-                # 将灰度图转换为3通道RGB图像
-                rgb_img = Image.merge('RGB', [depth_img, depth_img, depth_img])
-                
-                # 保存到新文件夹
-                rgb_img.save(os.path.join(new_folder_path, img_file))
-            
-            # 将新文件夹添加到普通摄像头列表，这样会自动将其包含在HDF5输出中
-            self.camera_names.append(new_folder_name)
-
-    def process_mask_images(self, folder_path):
-        """
-        处理掩码图像，将其转换为RGB格式并保存到新文件夹
-        """
-        for mask_cam in self.camera_names_mask:
-            # 创建新文件夹名
-            new_folder_name = mask_cam + "_rgb"
-            new_folder_path = os.path.join(folder_path, new_folder_name)
-            
-            # 创建新文件夹
-            if not os.path.exists(new_folder_path):
-                os.makedirs(new_folder_path)
-                print(f"创建文件夹: {new_folder_path}")
-            
-            # 处理所有掩码图像
-            mask_folder_path = os.path.join(folder_path, mask_cam)
-            img_files = [f for f in os.listdir(mask_folder_path) if f.endswith('.png')]
-            
-            for img_file in tqdm.tqdm(img_files, desc=f"处理掩码图像 {mask_cam}"):
-                img_path = os.path.join(mask_folder_path, img_file)
-                
-                # 读取掩码图像为灰度图
-                mask_img = Image.open(img_path).convert('L')
-                
-                # 检查图像尺寸，如果不是480x640就调整
-                if mask_img.size != (640, 480):
-                    mask_img = mask_img.resize((640, 480))
-                
-                # 将灰度图转换为numpy数组以便处理
-                mask_array = np.array(mask_img)
-                
-                # 创建空白RGB图像
-                rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
-                
-                # 根据灰度值设置不同的RGB值
-                rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
-                rgb_array[mask_array == 84, 1] = 255
-                rgb_array[mask_array == 83, 2] = 255
-
-                # 转换为PIL图像
-                rgb_img = Image.fromarray(rgb_array)
-                
-                # 保存到新文件夹
-                rgb_img.save(os.path.join(new_folder_path, img_file))
-            
-            # 将新文件夹添加到普通摄像头列表，这样会自动将其包含在HDF5输出中
-            self.camera_names.append(new_folder_name)
 
 
 def main(config_path='data_sampler.yaml'):
@@ -268,11 +252,8 @@ def main(config_path='data_sampler.yaml'):
             import shutil
             shutil.rmtree(output_path)
             print(f"已删除现有目录: {output_path}")
-        elif user_input.lower() == 'n':
-            print("操作已取消")
-            return
         else:
-            print("无效输入，操作已取消")
+            print("操作已取消")
             return
     
     output_path.mkdir(parents=True, exist_ok=True)
