@@ -13,7 +13,7 @@ import torch
 import pickle
 import gc  
 import matplotlib.pyplot as plt
-
+import sys 
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -85,6 +85,7 @@ class RLBenchProcessor:
                 print(f"创建目录: {directory}")
             else:
                 print("操作已取消")
+                sys.exit(0) 
                 return
 
             

@@ -225,7 +225,6 @@ CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick
 
 ```
 
-
 ## mode=2 仿真测试
 
 配置依赖  `data_sampler.yaml 中 的 ['act_policy']`
@@ -238,9 +237,6 @@ python data_sampler.py
 # 三、其他
 
 ## 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
-
-
-
 
 
 ## rlbench 不能与 cv2 同时使用

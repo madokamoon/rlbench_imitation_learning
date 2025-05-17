@@ -11,6 +11,7 @@ from einops import rearrange
 import wandb
 import time
 from torchvision import transforms
+import datetime
 
 from constants import FPS
 from constants import PUPPET_GRIPPER_JOINT_OPEN
@@ -43,6 +44,12 @@ def main(args):
     # 解析命令行参数
     is_eval = args['eval']
     ckpt_dir = args['ckpt_dir']
+
+    # act修改 训练保存结果路径加入时间戳
+    now_time = datetime.datetime.now()
+    str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+    ckpt_dir = os.path.join(ckpt_dir, str_time)
+
     policy_class = args['policy_class']
     onscreen_render = args['onscreen_render']
     task_name = args['task_name']
