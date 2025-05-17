@@ -1,5 +1,5 @@
 # 0 采样 1 重现 2 评估
-mode: 2
+mode: 0
 
 
 # ------------------ 采样 重现 数据转换  ------------------ 
@@ -7,8 +7,8 @@ data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: '20demos_static'
-  num_demos: 20
+  save_path_end: 'test'
+  num_demos: 2
   image:
     width: 640
     height: 480
@@ -20,6 +20,7 @@ data_sampler_config:
     - 'overhead_camera'
   # 启用后所有demo的初始物体位置一样
   static_positions: True
+  headless: False
 
 
 # ------------------ 训练/评估 ------------------  

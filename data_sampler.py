@@ -49,7 +49,7 @@ class RLBenchProcessor:
         self.image_height = self.data_sampler_config['image']['height']
         self.camera_names = self.data_sampler_config['cameras']
         self.static_positions = self.data_sampler_config['static_positions']
-
+        self.headless = self.data_sampler_config['headless']
 
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
@@ -194,7 +194,7 @@ class RLBenchProcessor:
         self.env = Environment(
             action_mode=action_mode,
             obs_config=self.obs_config, 
-            headless=False,
+            headless=self.headless,
         )
             
         # 使用sim模块直接设置物理引擎参数 
