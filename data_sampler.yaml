@@ -1,5 +1,5 @@
 # 0 采样 1 重现 2 评估
-mode: 0
+mode: 2
 
 
 # ------------------ 采样 重现 数据转换 ------------------ 
@@ -20,21 +20,19 @@ data_sampler_config:
     - 'overhead_camera'
   # 启用后所有demo的初始物体位置一样
   static_positions: False
-  headless: true
+  headless: False
 
 
 # ------------------ 训练/评估 ------------------  
 act_policy:
   'task_config':
     'dataset_dir': 'data/pick_and_lift/20demos_static_hdf5'
-    'episode_len': 150
+    'episode_len': 150  # 只影响评估
     # 'train_ratio': 0.95
-    # 'camera_names': ['front_camera']
     'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
-    # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
   'eval': true
-  'ckpt_dir': 'training/pick_and_lift/20demos_hdf5_4_4000_fwo'
+  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_8_10000_rgb'
   'ckpt_name': 'policy_best.ckpt'
   "policy_class": "ACT"
   "onscreen_render": false
@@ -66,7 +64,7 @@ act_policy:
   'temporal_agg': false
   'load_pretrain': false
   # 我的参数
-  'show_3D_state': false
+  'show_3D_state': true
 
   
 

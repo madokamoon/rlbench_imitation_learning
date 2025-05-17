@@ -137,11 +137,30 @@ conda install libstdcxx-ng=12.1.0 --channel conda-forge
 
 再次查看已经有了 GLIBCXX_3.4.30
 
+### rlbench 与 cv2 同时使用导致 Could not find the Qt platform plugin "xcb"
 
+```bash
+qt.qpa.plugin: Could not find the Qt platform plugin "xcb" in "/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/cv2/qt/plugins"
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+```
 
-# 二、使用说明
+只要在rlbench运行，就不能 import cv2 否则qt会去cv2中寻找plugin，而不去 coppeliaSim 中寻找
 
-## 不要在 GUI 中保存
+解决：使用cv2无头模式
+
+```bash
+pip uninstall opencv-python
+pip install opencv-python-headless
+```
+
+需要时暂时使用有头模式：
+
+```bash
+pip uninstall opencv-python-headless
+pip install opencv-python
+```
+
+### Coppeliasim GUI 中保存导致 Handle cam_head_mask does not exist 
 **不要在 Coppeliasim 的 GUI 中保存代码** ，无论是使用 Ctrl+S 还是在关闭窗口时在弹出窗口中确认 “Did you save changes？”在 GUI 中保存场景可能会导致缺少组件，并导致后续执行中出现错误。例如：
 
 `"RuntimeError: Handle cam_head_mask does not exist"`
@@ -159,6 +178,9 @@ cd /home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/rlbench
 rm task_design.ttt 
 cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.ttt task_design.ttt 
 ```
+
+
+# 二、使用说明
 
 ## 文件说明
 
@@ -238,30 +260,6 @@ python data_sampler.py
 
 ## 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
 
-
-## rlbench 不能与 cv2 同时使用
-
-只要在rlbench运行，就不能 import cv2 否则qt会去cv2中寻找plugin，而不去 coppeliaSim 中寻找
-
-会报错：
-
-```bash
-qt.qpa.plugin: Could not find the Qt platform plugin "xcb" in "/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/cv2/qt/plugins"
-This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
-```
-
-解决：使用cv2无头模式
-```bash
-pip uninstall opencv-python
-pip install opencv-python-headless
-```
-
-暂时使用有头模式：
-
-```bash
-pip uninstall opencv-python-headless
-pip install opencv-python
-```
 
 ## 常用指令
 
