@@ -581,7 +581,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=50):
+    def act_eval(self, max_attempts=20):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -625,7 +625,7 @@ class RLBenchProcessor:
                 # 执行控制循环
                 success_in_this_attempt = False
 
-                forceslist = []
+                # forceslist = []
 
                 for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
                     # 处理观察获取图像和状态
@@ -685,10 +685,9 @@ class RLBenchProcessor:
                         print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
 
-                        forceslist.append(obs.gripper_touch_forces)
-
-                        formatted_forces = [f"{val:8.5f}" for val in obs.gripper_touch_forces]
-                        print(f"touch_forces:{formatted_forces}")
+                        # forceslist.append(obs.gripper_touch_forces)
+                        # formatted_forces = [f"{val:8.5f}" for val in obs.gripper_touch_forces]
+                        # print(f"touch_forces:{formatted_forces}")
 
 
 
@@ -708,16 +707,16 @@ class RLBenchProcessor:
                         print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
                         break
                 
-                forces_array = np.array(forceslist)  
+                # forces_array = np.array(forceslist)  
                 # 获取力传感器数量
-                num_sensors = forces_array.shape[1]
-                time_steps = forces_array.shape[0]
-                plt.figure(figsize=(12, 6))
-                for i in range(num_sensors):
-                    plt.plot(range(time_steps), forces_array[:, i], label=f'force {i+1}')
-                plt.grid(True)
-                plt.legend()
-                plt.show()
+                # num_sensors = forces_array.shape[1]
+                # time_steps = forces_array.shape[0]
+                # plt.figure(figsize=(12, 6))
+                # for i in range(num_sensors):
+                #     plt.plot(range(time_steps), forces_array[:, i], label=f'force {i+1}')
+                # plt.grid(True)
+                # plt.legend()
+                # plt.show()
 
                 if not success_in_this_attempt and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")

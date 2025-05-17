@@ -62,8 +62,8 @@ act_policy:
   'prediction_len': None
     # 原文件 config
   'seed': 0
-  'temporal_agg': true
-  # 'temporal_agg': false
+  # 'temporal_agg': true
+  'temporal_agg': false
   'load_pretrain': false
   # 我的参数
   'show_3D_state': false
