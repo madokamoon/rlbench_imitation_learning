@@ -1,13 +1,13 @@
 # 0 采样 1 重现 2 评估
-mode: 0
+mode: 2
 
 
-# ------------------ 采样 重现 数据转换  ------------------ 
+# ------------------ 采样 重现 数据转换 ------------------ 
 data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: 'test'
+  save_path_end: '20demos_static'
   num_demos: 2
   image:
     width: 640
@@ -62,8 +62,8 @@ act_policy:
   'prediction_len': None
     # 原文件 config
   'seed': 0
-  # 'temporal_agg': true
-  'temporal_agg': false
+  'temporal_agg': true
+  # 'temporal_agg': false
   'load_pretrain': false
   # 我的参数
   'show_3D_state': false

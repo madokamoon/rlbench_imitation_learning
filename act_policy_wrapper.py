@@ -368,7 +368,7 @@ class ACTPolicyWrapper:
                     plt.show(block=True)
 
 
-                # -----------寻找最近的点 这样会导致 step 变大，而超出temporal_agg模式下all_time_actions的范围，所以不用temporal_agg---------------------------------
+                # -----------寻找最近的点 ---------------------------------
                 # 计算当前状态坐标与预测动作中最近的点
                 all_actions_np = self.all_actions.detach().cpu().numpy()
                 # 应用post_process处理动作点
@@ -388,9 +388,13 @@ class ACTPolicyWrapper:
                 # 找到距离最小的点的索引
                 closest_point_idx = np.argmin(distances)
                 
-                # 重新设置step为最近点的索引
-                print(f"发现最近的点，索引从 {self.step % self.query_frequency} 调整为 {self.step + closest_point_idx}")
-                self.step = self.step + closest_point_idx
+                if 0 :   # 重新设置step为最近点的索引,这样会导致 step 变大，而超出temporal_agg模式下all_time_actions的范围，所以不能用temporal_agg
+                    print(f"发现最近的点，索引从 {self.step % self.query_frequency} 调整为 {self.step + closest_point_idx}")
+                    self.step = self.step + closest_point_idx
+                else:    # 将closest_point_idx之前的所有动作都替换为closest_point_action ，以兼容temporal_agg模式
+                    closest_point_action = self.all_actions[0, closest_point_idx].clone()
+                    for i in range(closest_point_idx):
+                        self.all_actions[0, i] = closest_point_action
                 # ------------------------------寻找最近的点---------------------------------
 
 

@@ -14,6 +14,7 @@ import pickle
 import gc  
 import matplotlib.pyplot as plt
 
+
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
 from rlbench.action_modes.gripper_action_modes import GripperJointPosition
@@ -198,10 +199,8 @@ class RLBenchProcessor:
         )
             
         # 使用sim模块直接设置物理引擎参数 
-        # 高刚度确保物体不会轻易变形
-        # 高阻尼减少物体在夹爪中的震动
-        # sim.simSetEngineFloatParameter(sim.sim_bullet_body_stiffness, 10.0, None)
-        # sim.simSetEngineFloatParameter(sim.sim_bullet_body_damping, 5.0, None)
+        # sim.simSetEngineFloatParameter()
+        # sim.simSetEngineFloatParameter()
 
 
         self.env.launch()
