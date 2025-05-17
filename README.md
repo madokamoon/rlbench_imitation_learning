@@ -87,10 +87,11 @@ pip install -e .
 
 ```bash
 pip install gymnasium
-
+# 解决rlbench和cv2的qt冲突
 pip uninstall opencv-python
 pip install opencv-python-headless
-
+# data_proccess需要
+pip install imageio
 ```
 
 ## 错误解决
@@ -185,18 +186,18 @@ python data_sampler.py
 ```
 保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳`
 
-## data_proccess.py 数据重现
+## mode=1 数据重现
 
 利用收集的数据在rlbench中重现动作，如果不是静态模式，仅重现动作
 
 如果是静态模式 `static_positions: True` ，会加载 initial_state.pickle 环境
 
 ```bash
-python data_proccess.py
-```
-## mode=1 数据转换
-```bash
 python data_sampler.py
+```
+## data_proccess.py 数据转换
+```bash
+python data_proccess.py
 ```
 保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳_hdf5`
 
@@ -208,9 +209,11 @@ python data_sampler.py
 python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
 ```
 
+MP4播放工具：`sudo apt-get install smplayer`
+
 使用 https://myhdf5.hdfgroup.org/ 网页工具
 
-使用 tools，但tools只支持六维机械臂和三个相机
+使用 tools，但tools只支持六维机械臂数据和三个相机
 
 ## imitate_episodes.py 训练 
 
