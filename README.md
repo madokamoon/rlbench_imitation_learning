@@ -83,6 +83,58 @@ pip install -e .
 # pip install -e .
 ```
 
+##  其他安装
+
+```bash
+pip install gymnasium
+
+pip uninstall opencv-python
+pip install opencv-python-headless
+
+```
+
+## 错误解决
+
+### failed to load driver: swrast
+
+执行 python data_sampler.py 如果报错
+```bash
+libGL error: MESA-LOADER: failed to open swrast: /usr/lib/dri/swrast_dri.so: 无法打开共享目标文件: 没有那个文件或目录 (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
+libGL error: failed to load driver: swrast
+```
+
+查找 /usr/lib/x86_64-linux-gnu/dri 下是否有该缺失的文件
+```bash
+cd /usr/lib/x86_64-linux-gnu/dri
+ls
+```
+
+如果有，在 /usr/lib/dri/ 中建立软链接
+```bash
+cd /usr/lib
+sudo mkdir ./dri
+sudo ln -s /usr/lib/x86_64-linux-gnu/dri/iris_dri.so /usr/lib/dri/
+sudo ln -s /usr/lib/x86_64-linux-gnu/dri/swrast_dri.so /usr/lib/dri/
+```
+
+接下来会报错
+```bash
+libGL error: MESA-LOADER: failed to open swrast: /home/haoyue/anaconda3/envs/rlact/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /lib/x86_64-linux-gnu/libLLVM-15.so.1) (search paths /usr/lib/x86_64-linux-gnu/dri:\$${ORIGIN}/dri:/usr/lib/dri, suffix _dri)
+libGL error: failed to load driver: swrast
+```
+查看 GLIBCXX 当前版本
+
+`which python` → /home/haoyue/anaconda3/envs/rlact/bin/python
+
+`strings /home/haoyue/anaconda3/envs/rlact/lib/libstdc++.so.6 | grep GLIBCXX`  → 发现没有 GLIBCXX_3.4.30
+
+`conda list -n rlact | grep libstdcxx-ng`  → 发现为 11.2.0 应升级到 12.1.0
+
+```bash
+conda install libstdcxx-ng=12.1.0 --channel conda-forge
+```
+
+再次查看已经有了 GLIBCXX_3.4.30
 
 
 
@@ -190,23 +242,27 @@ python data_sampler.py
 
 ## rlbench 不能与 cv2 同时使用
 
-否则会报错：
+只要在rlbench运行，就不能 import cv2 否则qt会去cv2中寻找plugin，而不去 coppeliaSim 中寻找
+
+会报错：
 
 ```bash
 qt.qpa.plugin: Could not find the Qt platform plugin "xcb" in "/home/madoka/APP/anaconda3/envs/rlact/lib/python3.8/site-packages/cv2/qt/plugins"
 This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
 ```
 
-解决
-
-```
+解决：使用cv2无头模式
+```bash
 pip uninstall opencv-python
 pip install opencv-python-headless
+```
 
+暂时使用有头模式：
+
+```bash
 pip uninstall opencv-python-headless
 pip install opencv-python
 ```
-
 
 ## 常用指令
 
