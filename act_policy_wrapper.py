@@ -30,7 +30,7 @@ class ACTPolicyWrapper:
             'ckpt_dir': config["ckpt_dir"],
             "policy_class": config['policy_class'],
             "onscreen_render": config["onscreen_render"],
-            "task_name": config['task_name'],
+            'task_name': config['task_name'],
             "batch_size": config['batch_size'],
             'num_steps': config['num_steps'],
             'eval_every': config['eval_every'],
@@ -58,6 +58,7 @@ class ACTPolicyWrapper:
             'load_pretrain': config['load_pretrain'],
             # 我的参数
             'ckpt_name': config['ckpt_name'],
+            'show_3D_state': config['show_3D_state']
         }
 
         is_eval = args['eval']
@@ -73,18 +74,7 @@ class ACTPolicyWrapper:
         save_every = args['save_every']
         resume_ckpt_path = args['resume_ckpt_path']
 
-        # is_sim = task_name[:4] == 'sim_'
-        # if is_sim or task_name == 'all':
-        #     from act_plus.act_plus_plus.constants import SIM_TASK_CONFIGS
-        #     task_config = SIM_TASK_CONFIGS[task_name]
-        # else:
-        #     from act_plus.act_plus_plus.constants import TASK_CONFIGS
-        #     task_config = TASK_CONFIGS[task_name]
-        #     task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
-
-
         task_config = config.get('task_config')
-
         dataset_dir = task_config['dataset_dir']
         episode_len = task_config['episode_len']
         camera_names = task_config['camera_names']
@@ -176,6 +166,7 @@ class ACTPolicyWrapper:
         num_rollouts=10
 
         set_seed(1000)
+        
         ckpt_dir = evalconfig['ckpt_dir']
         state_dim = evalconfig['state_dim']
         real_robot = evalconfig['real_robot']
@@ -241,7 +232,7 @@ class ACTPolicyWrapper:
         self.temporal_agg = temporal_agg
         self.query_frequency = query_frequency
         self.camera_names = camera_names
-        print(f"ACTPolicy相机名称: {self.camera_names}")
+        self.show_3D_state = args['show_3D_state']
         self.step = 0
 
         print("ACT模型加载完成")
@@ -331,67 +322,53 @@ class ACTPolicyWrapper:
                 self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
                 print(self.query_frequency,'次一推理')
 
+                if self.show_3D_state:
+                    # ------------------------------绘制---------------------------------
+                    # 绘制 robot_state 和预测动作的3D可视化图
+                    import matplotlib.pyplot as plt
+                    from mpl_toolkits.mplot3d import Axes3D
 
-                # ------------------------------绘制---------------------------------
-                # 绘制 robot_state 的前三个数值的3维点，使用红色点
-                # 绘制 self.all_actions 的所有时刻的前三个数值的3维点，使用蓝色点，注意 all_actions 是张量，需要转换为 numpy 数组
-                import matplotlib.pyplot as plt
+                    # 创建3D图形
+                    fig = plt.figure(figsize=(10, 8))
+                    ax = fig.add_subplot(111, projection='3d')
 
-                # 创建图形
-                plt.figure(figsize=(10, 8))
-                ax = plt.subplot(111, projection='3d')
-
-                # 绘制 robot_state 的前三个数值的 3D 点（红色）
-                ax.scatter(robot_state[0], robot_state[1], robot_state[2], 
+                    # 绘制当前机器人状态点（红色）
+                    ax.scatter(robot_state[0], robot_state[1], robot_state[2], 
                             color='red', s=100, label='Robot State')
 
-                # 将 self.all_actions 转换为 numpy 数组，对每个动作点应用后处理函数，然后绘制
-                all_actions_np = self.all_actions.detach().cpu().numpy()
-                # 创建处理后的动作点数组
-                processed_actions = np.zeros_like(all_actions_np)
-                for i in range(all_actions_np.shape[1]):
-                    processed_actions[0, i] = self.post_process(all_actions_np[0, i])
-                
-                # 绘制处理后的动作点（只取前3个维度）
-                ax.scatter(processed_actions[0, :, 0], processed_actions[0, :, 1], processed_actions[0, :, 2], 
-                        color='blue', alpha=0.6, label='Predicted Actions')
+                    # 处理并绘制预测动作点（蓝色）
+                    all_actions_np = self.all_actions.detach().cpu().numpy()
+                    processed_actions = np.array([self.post_process(all_actions_np[0, i]) 
+                                                for i in range(all_actions_np.shape[1])])
+                    ax.scatter(processed_actions[:, 0], processed_actions[:, 1], processed_actions[:, 2], 
+                            color='blue', alpha=0.6, label='Predicted Actions')
 
-                # 添加标签和图例
-                ax.set_xlabel('X')
-                ax.set_ylabel('Y')
-                ax.set_zlabel('Z')
-                ax.set_title(f'policy (step {self.step})')
-                ax.legend()
+                    # 添加标签和标题
+                    ax.set_xlabel('X')
+                    ax.set_ylabel('Y')
+                    ax.set_zlabel('Z')
+                    ax.set_title(f'state and action (step {self.step})')
+                    ax.legend()
 
-                # 设置坐标轴比例一致
-                x_limits = ax.get_xlim()
-                y_limits = ax.get_ylim()
-                z_limits = ax.get_zlim()
-                
-                # 计算所有轴的最大范围
-                max_range = max([x_limits[1]-x_limits[0], 
-                                y_limits[1]-y_limits[0], 
-                                z_limits[1]-z_limits[0]])
-                
-                # 重新设置每个轴的范围，保持中心点不变
-                x_mid = (x_limits[1] + x_limits[0]) / 2
-                y_mid = (y_limits[1] + y_limits[0]) / 2
-                z_mid = (z_limits[1] + z_limits[0]) / 2
+                    # 获取所有点的坐标范围
+                    all_points = np.vstack([
+                        [robot_state[0], robot_state[1], robot_state[2]],
+                        processed_actions[:, 0:3]
+                    ])
+                    max_range = np.max(np.ptp(all_points, axis=0)) / 2
+                    mid_x, mid_y, mid_z = np.mean(all_points, axis=0)
 
-                ax.set_xlim([x_mid - max_range/2, x_mid + max_range/2])
-                ax.set_ylim([y_mid - max_range/2, y_mid + max_range/2])
-                ax.set_zlim([z_mid - max_range/2, z_mid + max_range/2])
-                
-                # 设置相同缩放比例
-                ax.set_box_aspect([1, 1, 1])
-                
-                # 显示图形并等待用户关闭窗口后继续
-                plt.tight_layout()
-                plt.show(block=True)
+                    # 设置相等的坐标轴范围
+                    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+                    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+                    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+                    ax.set_box_aspect((1, 1, 1))  # 确保坐标轴比例完全相同
 
-                # ------------------------------绘制---------------------------------
+                    plt.tight_layout()
+                    plt.show(block=True)
 
-                # ------------------------------寻找最近的点---------------------------------
+
+                # -----------寻找最近的点 这样会导致 step 变大，而超出temporal_agg模式下all_time_actions的范围，所以不用temporal_agg---------------------------------
                 # 计算当前状态坐标与预测动作中最近的点
                 all_actions_np = self.all_actions.detach().cpu().numpy()
                 # 应用post_process处理动作点
@@ -412,8 +389,8 @@ class ACTPolicyWrapper:
                 closest_point_idx = np.argmin(distances)
                 
                 # 重新设置step为最近点的索引
-                print(f"发现最近的点，索引从 {self.step % self.query_frequency} 调整为 {closest_point_idx}")
-                self.step = closest_point_idx
+                print(f"发现最近的点，索引从 {self.step % self.query_frequency} 调整为 {self.step + closest_point_idx}")
+                self.step = self.step + closest_point_idx
                 # ------------------------------寻找最近的点---------------------------------
 
 
@@ -447,8 +424,6 @@ class ACTPolicyWrapper:
             raw_action = raw_action.squeeze(0).cpu().numpy()
             action = self.post_process(raw_action)
             target_qpos = action[:-2]
-
-
 
             self.step+=1
 

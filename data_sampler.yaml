@@ -28,9 +28,8 @@ act_policy:
     'dataset_dir': 'data/pick_and_lift/20demos_static_hdf5'
     'episode_len': 150
     # 'train_ratio': 0.95
-    # 'camera_names': ['wrist_camera', 'front_camera', 'overhead_camera']
-    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     # 'camera_names': ['front_camera']
+    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
     # 'camera_names': ['front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
   'eval': true
@@ -65,6 +64,8 @@ act_policy:
   # 'temporal_agg': true
   'temporal_agg': false
   'load_pretrain': false
+  # 我的参数
+  'show_3D_state': false
 
   
 

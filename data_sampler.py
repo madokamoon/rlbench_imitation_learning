@@ -12,6 +12,7 @@ import random
 import torch
 import pickle
 import gc  
+import matplotlib.pyplot as plt
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -19,7 +20,7 @@ from rlbench.action_modes.gripper_action_modes import GripperJointPosition
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from act_policy_wrapper import ACTPolicyWrapper
-
+from pyrep.backend import sim
 
 class RLBenchProcessor:
     """用于RLBench环境的数据采样与轨迹执行的综合处理器"""
@@ -127,7 +128,7 @@ class RLBenchProcessor:
         obs_config.gripper_pose = True 
         obs_config.gripper_joint_positions = True
         obs_config.gripper_matrix = True
-        obs_config.gripper_touch_forces = False
+        obs_config.gripper_touch_forces = True 
         # obs_config.record_gripper_closing = True  # 会卡很久
           
         return obs_config
@@ -196,6 +197,13 @@ class RLBenchProcessor:
             headless=False,
         )
             
+        # 使用sim模块直接设置物理引擎参数 
+        # 高刚度确保物体不会轻易变形
+        # 高阻尼减少物体在夹爪中的震动
+        # sim.simSetEngineFloatParameter(sim.sim_bullet_body_stiffness, 10.0, None)
+        # sim.simSetEngineFloatParameter(sim.sim_bullet_body_damping, 5.0, None)
+
+
         self.env.launch()
         print("rlbench环境启动成功")
 
@@ -451,17 +459,12 @@ class RLBenchProcessor:
             # 提取末端位姿和夹爪动作
             pose = frame_data['robot_state']  # [x, y, z, qx, qy, qz, qw]
             
-            # 获取夹爪开合状态 (0-1范围)
+            # 获取夹爪开合状态 
             gripper_open = frame_data.get('grasp_state', [0])[0]
-            
-            # 如果grasp_action不是0-1范围(是0-0.04)，需要归一化
-            if gripper_open > 0 and gripper_open <= 0.04:
-                gripper_joint_position = gripper_open  # 已经是关节位置
-            else:
-                # GripperJointPosition需要将0-1范围映射到0-0.04范围
-                gripper_joint_position = gripper_open * 0.04
-            
-            # 执行动作
+            gripper_joint_position = 0.04 * float(gripper_open > 0.5) 
+
+
+            # 执行动作.
             action = np.array(pose + [gripper_joint_position])
             obs, reward, terminate = self.task.step(action)
             
@@ -579,7 +582,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_steps=200, max_attempts=100):
+    def act_eval(self, max_attempts=50):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -592,6 +595,7 @@ class RLBenchProcessor:
         """
         from weight import calculate_change_weight  # 导入计算权重的函数
         
+        max_steps = self.config['act_policy']['task_config']['episode_len']
         success_counts = 0  # 成功次数统计
         successful_steps = []  # 记录每次成功尝试的步骤数
         attempt = 0
@@ -621,10 +625,14 @@ class RLBenchProcessor:
                 
                 # 执行控制循环
                 success_in_this_attempt = False
+
+                forceslist = []
+
                 for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
-                    print(f"机器人状态: {robot_state}")
+                    formatted_state = [f"{val:8.5f}" for val in robot_state]
+                    print(f"robot_state_:{formatted_state}")
 
                     # 计算权重view_weights
                     view_weights = []
@@ -647,7 +655,6 @@ class RLBenchProcessor:
                         print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
                         actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
                     else:
-                        print("使用默认视角权重")
                         actaction = self.act_policy.get_actions(imgdata, robot_state)
 
                     # 保存当前帧作为下一次迭代的上一帧
@@ -675,8 +682,16 @@ class RLBenchProcessor:
                     # 执行动作
                     try:
                         action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
-                        print(f"执行动作: {action}")
+                        formatted_action = [f"{val:8.5f}" for val in action]
+                        print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
+
+                        forceslist.append(obs.gripper_touch_forces)
+
+                        formatted_forces = [f"{val:8.5f}" for val in obs.gripper_touch_forces]
+                        print(f"touch_forces:{formatted_forces}")
+
+
 
                         # 检查任务状态
                         if reward == 1.0:
@@ -694,6 +709,17 @@ class RLBenchProcessor:
                         print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
                         break
                 
+                forces_array = np.array(forceslist)  
+                # 获取力传感器数量
+                num_sensors = forces_array.shape[1]
+                time_steps = forces_array.shape[0]
+                plt.figure(figsize=(12, 6))
+                for i in range(num_sensors):
+                    plt.plot(range(time_steps), forces_array[:, i], label=f'force {i+1}')
+                plt.grid(True)
+                plt.legend()
+                plt.show()
+
                 if not success_in_this_attempt and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
                     time.sleep(1)
