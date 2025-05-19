@@ -13,17 +13,17 @@ import time
 from torchvision import transforms
 import datetime
 
-from constants import FPS
-from constants import PUPPET_GRIPPER_JOINT_OPEN
-from utils import load_data # data functions
-from utils import sample_box_pose, sample_insertion_pose # robot functions
-from utils import compute_dict_mean, set_seed, detach_dict, calibrate_linear_vel, postprocess_base_action # helper functions
-from policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
-from visualize_episodes import save_videos
+from act_plus_plus.constants import FPS
+from act_plus_plus.constants import PUPPET_GRIPPER_JOINT_OPEN
+from act_plus_plus.utils import load_data # data functions
+from act_plus_plus.utils import sample_box_pose, sample_insertion_pose # robot functions
+from act_plus_plus.utils import compute_dict_mean, set_seed, detach_dict, calibrate_linear_vel, postprocess_base_action # helper functions
+from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
+from act_plus_plus.visualize_episodes import save_videos
 
-from detr.models.latent_model import Latent_Model_Transformer
+from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
 
-from sim_env import BOX_POSE
+from act_plus_plus.sim_env import BOX_POSE
 
 
 import IPython

@@ -21,8 +21,8 @@ data_sampler_config:
   # 启用后所有demo的初始物体位置一样
   static_positions: True
   headless: False
-  robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
-
+  # robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
+  robot_init_state: None
 
 # ------------------ 训练/评估 ------------------  
 act_policy:
@@ -32,40 +32,45 @@ act_policy:
     # 'train_ratio': 0.95
     'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
-  'eval': true
-  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_8_10000_rgb'
+
+  # eval 单独参数
+  'show_3D_state': true
   'ckpt_name': 'policy_best.ckpt'
-  "policy_class": "ACT"
-  "onscreen_render": false
-  "task_name": "pick_and_lift"
-  "batch_size": 8
+
+  # 同 imitate_episodes.py 的所有 argparse 参数
+  'eval': false
+  'onscreen_render': false
+  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_8_10000_rgb'
+  'policy_class': 'ACT'
+  'task_name': 'pick_and_lift'
+  'batch_size': 8
+  'seed': 0
   'num_steps': 10000
-  'eval_every': 500
-  'validate_every': 500
-  'save_every': 500
-  'resume_ckpt_path': false
-    # 原文件 policy_config
   'lr': 0.00001
-  'chunk_size': 100
-  'kl_weight': 10
-  'hidden_dim': 512
-  'dim_feedforward': 3200
-  'use_vq': false
-  'vq_class': None
-  'vq_dim': None
-  'no_encoder': False
-    # 原文件 actuator_config 
+  'load_pretrain': False
+  'eval_every': 1000
+  'validate_every': 1000
+  'save_every': 1000
+  'resume_ckpt_path': None
+  'skip_mirrored_data': false
   'actuator_network_dir': None
   'history_len': None
   'future_len': None
   'prediction_len': None
-    # 原文件 config
-  'seed': 0
-  # 'temporal_agg': true
+  # for ACT
+  'kl_weight': 10
+  'chunk_size': 100
+  'hidden_dim': 512
+  'dim_feedforward': 3200
   'temporal_agg': false
-  'load_pretrain': false
-  # 我的参数
-  'show_3D_state': true
+  'use_vq': false
+  'vq_class': None
+  'vq_dim': None
+  'no_encoder': False
+
+
+
+
 
   
 
