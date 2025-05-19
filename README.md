@@ -187,6 +187,8 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 
 data_sampler.yaml：集成采集，重现，转换，训练，测试的配置
 
+若存在 data_sampler_local.yaml 优先使用
+
 data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
 
 data_proccess.py ：数据转换功能，转换为hdf5同时计算权重

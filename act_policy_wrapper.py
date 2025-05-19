@@ -26,7 +26,8 @@ class ACTPolicyWrapper:
         
         ckpt_dir = args['ckpt_dir']
         str_time = args['ckpt_dir_end']
-        ckpt_dir = os.path.join(ckpt_dir, str_time)
+        if str_time is not None:
+            ckpt_dir = os.path.join(ckpt_dir, str_time)
 
         policy_class = args['policy_class']
         onscreen_render = args['onscreen_render']
