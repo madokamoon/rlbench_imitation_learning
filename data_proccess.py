@@ -243,8 +243,18 @@ class RawToHDF5Converter:
 
 def main(config_path='data_sampler.yaml', max_workers=None):
     # 加载配置
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
+
+    # with open(config_path, 'r') as f:
+    #     config = yaml.safe_load(f)
+
+    if os.path.exists('data_sampler_local.yaml'):
+        with open('data_sampler_local.yaml', 'r') as f:
+            print("使用本地配置文件 data_sampler_local.yaml")
+            config = yaml.safe_load(f)
+    else:
+        with open('data_sampler.yaml', 'r') as f:
+            print("使用默认配置文件 data_sampler.yaml")
+            config = yaml.safe_load(f)
 
     # 从配置中获取参数
     data_sampler_config = config.get('data_sampler_config', {})

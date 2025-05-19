@@ -721,9 +721,15 @@ def repeater(data_loader):
 
 if __name__ == '__main__':
 
-    config_file = 'data_sampler.yaml'
-    with open(config_file, 'r') as f:
-        config = yaml.safe_load(f)
+    if os.path.exists('data_sampler_local.yaml'):
+        with open('data_sampler_local.yaml', 'r') as f:
+            print("使用本地配置文件 data_sampler_local.yaml")
+            config = yaml.safe_load(f)
+    else:
+        with open('data_sampler.yaml', 'r') as f:
+            print("使用默认配置文件 data_sampler.yaml")
+            config = yaml.safe_load(f)
+
     main(config['act_policy'])
 
 

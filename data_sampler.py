@@ -26,22 +26,14 @@ from pyrep.backend import sim
 class RLBenchProcessor:
     """用于RLBench环境的数据采样与轨迹执行的综合处理器"""
     
-    def __init__(self, config_path='data_sampler.yaml'):
-        """
-        初始化处理器
-        
-        Args:
-            config_path: 配置文件路径
-        """
-        # 加载配置
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        
+    def __init__(self, config):
+
         self.mode = config.get('mode', 0)
         print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
 
         # 从配置中获取参数
         data_sampler_config = config.get('data_sampler_config', {})
+        self.data_sampler_config = data_sampler_config
         self.save_path_head = data_sampler_config['save_path_head']
         self.save_path_end = data_sampler_config['save_path_end']
         self.taskname = data_sampler_config['taskname']
@@ -835,9 +827,18 @@ if __name__ == "__main__":
     # seed = int(time.time()) 
     # np.random.seed(seed)
     # random.seed(seed)
-    # print(f"使用随机种子: {seed}")
+    # print(f"使用随机种子: {seed}")'
 
-    processor = RLBenchProcessor()
+    if os.path.exists('data_sampler_local.yaml'):
+        with open('data_sampler_local.yaml', 'r') as f:
+            print("使用本地配置文件 data_sampler_local.yaml")
+            config = yaml.safe_load(f)
+    else:
+        with open('data_sampler.yaml', 'r') as f:
+            print("使用默认配置文件 data_sampler.yaml")
+            config = yaml.safe_load(f)
+
+    processor = RLBenchProcessor(config)
     processor.run()
 
 
