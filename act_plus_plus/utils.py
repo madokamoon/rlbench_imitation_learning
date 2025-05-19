@@ -89,7 +89,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
                 # act修改hdf5数据读取-获取权重数据-如果没有设置为1.0 
                 weight_dict = dict()
                 for cam_name in self.camera_names:
-                    if f'/observations/weight/{cam_name}' in root:
+                    if f'/observations/weight/{cam_name}' in root and f'/observations/weight/{cam_name}_mask' in root:
                         weight_dict[cam_name] = root[f'/observations/weight/{cam_name}_mask'][start_ts]  # 找对应的mask的权重数据
                     else:
                         # 如果没有权重数据，使用默认值1.0
