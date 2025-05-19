@@ -13,7 +13,7 @@ import glob
 import time, datetime
 
 # 导入权重计算函数
-from weight import calculate_change_weight
+from weight.weight import calculate_change_weight
 
 class RawToHDF5Converter:
     def __init__(self, input_path, output_path, image_width=640, image_height=480):

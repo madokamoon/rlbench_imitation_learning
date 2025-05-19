@@ -1,5 +1,5 @@
 # 0 采样 1 重现 2 评估
-mode: 2
+mode: 1
 
 
 # ------------------ 采样 重现 数据转换 ------------------ 
@@ -19,8 +19,9 @@ data_sampler_config:
     # - 'right_shoulder_camera'
     - 'overhead_camera'
   # 启用后所有demo的初始物体位置一样
-  static_positions: False
+  static_positions: True
   headless: False
+  robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
 
 
 # ------------------ 训练/评估 ------------------  

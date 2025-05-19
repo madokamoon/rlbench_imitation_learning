@@ -51,6 +51,7 @@ class RLBenchProcessor:
         self.camera_names = self.data_sampler_config['cameras']
         self.static_positions = self.data_sampler_config['static_positions']
         self.headless = self.data_sampler_config['headless']
+        self.robot_init_state = self.data_sampler_config['robot_init_state']
 
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
@@ -354,11 +355,8 @@ class RLBenchProcessor:
 
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
-        
-
-
+    
         self._check_and_make(self.variation_path)
-
 
         config_save_path = os.path.join(self.variation_path, "data_sampler_config.yaml")
         with open(config_save_path, 'w') as f:
@@ -405,10 +403,14 @@ class RLBenchProcessor:
                 random.setstate(random_state)
                 np.random.set_state(numpy_state)
                 self.task.reset_to_demo(reference_demo)
-                # descriptions, obs = self.task.reset()   # 收集的时候不能加上这句，其他情况需要加上，原因不明
+                # 收集的时候不能加上这句，其他情况需要加上，原因为 task.get_demos 中会调用 reset()
+                # descriptions, obs = self.task.reset()  
             else:
                 pass
                 # descriptions, obs = self.task.reset()
+
+            if self.robot_init_state is not None:
+                    self.task.step(self.robot_init_state)
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
@@ -593,7 +595,7 @@ class RLBenchProcessor:
         Returns:
             tuple: (成功率, 平均步骤数)
         """
-        from weight import calculate_change_weight  # 导入计算权重的函数
+        from weight.weight import calculate_change_weight  # 导入计算权重的函数
         
         max_steps = self.config['act_policy']['task_config']['episode_len']
         success_counts = 0  # 成功次数统计
