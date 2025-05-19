@@ -12,6 +12,8 @@ import wandb
 import time
 from torchvision import transforms
 import datetime
+import yaml,pathlib
+
 
 from act_plus_plus.constants import FPS
 from act_plus_plus.constants import PUPPET_GRIPPER_JOINT_OPEN
@@ -71,21 +73,7 @@ def main(args):
         # from aloha_scripts.constants import TASK_CONFIGS
         # task_config = TASK_CONFIGS[task_name]
         # act修改 从data_sampler.yaml读取任务配置
-
-        import yaml
-        yaml_path = os.path.join(os.path.dirname(__file__), "../data_sampler.yaml")
-        print(f"读取配置文件: {yaml_path}")
-        
-        with open(yaml_path, 'r') as f:
-            yaml_config = yaml.safe_load(f)
-        
-        if 'act_policy' in yaml_config and 'task_config' in yaml_config['act_policy']:
-            task_config = yaml_config['act_policy']['task_config']
-            print(f"成功加载任务配置: {task_name}")
-        else:
-            raise ValueError("在data_sampler.yaml中未找到act_policy.task_config配置")
-        
-        task_config['dataset_dir'] = os.path.expanduser(task_config['dataset_dir'])
+        task_config = args['task_config']
 
 
     dataset_dir = task_config['dataset_dir']
@@ -174,6 +162,8 @@ def main(args):
         'real_robot': not is_sim,
         'load_pretrain': args['load_pretrain'],
         'actuator_config': actuator_config,
+        # 新增配置
+        'use_weight': args['use_weight'],
     }
 
     if not os.path.isdir(ckpt_dir):
@@ -612,22 +602,16 @@ def visualize_tensor(camera_names, tensor):
 
 
 
-def forward_pass(data, policy):
+def forward_pass(data, policy, use_weight):
 
-    # image_data, qpos_data, action_data, is_pad = data
-    # image_data, qpos_data, action_data, is_pad = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda()
-    # return policy(qpos_data, image_data, action_data, is_pad)   # TODO remove None
-
-
-    # act修改 forward_pass 增加weight_data
     image_data, qpos_data, action_data, is_pad , weight_data = data
-    # print(f'forward pass: {image_data.shape}, {qpos_data.shape}, {action_data.shape}, {is_pad.shape}, {weight_data.shape}')
-    # print(f'forward pass: {type(image_data)}, {type(qpos_data)}, {type(action_data)}, {type(is_pad)}, {type(weight_data)}')
     image_data, qpos_data, action_data, is_pad, weight_data = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda(), weight_data.cuda()
-    # print('forward pass weight_data',weight_data)
-    # visualize_tensor(["1",'2','3'],image_data)
-    # return policy(qpos_data, image_data, action_data, is_pad,weight_data)    # 使用权重
-    return policy(qpos_data, image_data, action_data, is_pad)  # 不使用权重 直接不传入
+
+    if use_weight:
+        print('forward pass weight_data',weight_data)
+        return policy(qpos_data, image_data, action_data, is_pad, weight_data)   
+    else: 
+        return policy(qpos_data, image_data, action_data, is_pad)  
 
 
 def train_bc(train_dataloader, val_dataloader, config):
@@ -667,7 +651,7 @@ def train_bc(train_dataloader, val_dataloader, config):
                 policy.eval()
                 validation_dicts = []
                 for batch_idx, data in enumerate(val_dataloader):
-                    forward_dict = forward_pass(data, policy)
+                    forward_dict = forward_pass(data, policy, config['use_weight'])
                     validation_dicts.append(forward_dict)
                     if batch_idx > 50:
                         break
@@ -703,7 +687,7 @@ def train_bc(train_dataloader, val_dataloader, config):
         policy.train()
         optimizer.zero_grad()
         data = next(train_dataloader)
-        forward_dict = forward_pass(data, policy)
+        forward_dict = forward_pass(data, policy, config['use_weight'])
         # backward
         # 反向传播
         loss = forward_dict['loss']
@@ -737,38 +721,10 @@ def repeater(data_loader):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--eval', action='store_true')
-    parser.add_argument('--onscreen_render', action='store_true')
-    parser.add_argument('--ckpt_dir', action='store', type=str, help='ckpt_dir', required=True)
-    parser.add_argument('--policy_class', action='store', type=str, help='policy_class, capitalize', required=True)
-    parser.add_argument('--task_name', action='store', type=str, help='task_name', required=True)
-    parser.add_argument('--batch_size', action='store', type=int, help='batch_size', required=True)
-    parser.add_argument('--seed', action='store', type=int, help='seed', required=True)
-    parser.add_argument('--num_steps', action='store', type=int, help='num_steps', required=True)
-    parser.add_argument('--lr', action='store', type=float, help='lr', required=True)
-    parser.add_argument('--load_pretrain', action='store_true', default=False)
-    parser.add_argument('--eval_every', action='store', type=int, default=500, help='eval_every', required=False)
-    parser.add_argument('--validate_every', action='store', type=int, default=500, help='validate_every', required=False)
-    parser.add_argument('--save_every', action='store', type=int, default=500, help='save_every', required=False)
-    parser.add_argument('--resume_ckpt_path', action='store', type=str, help='resume_ckpt_path', required=False)
-    parser.add_argument('--skip_mirrored_data', action='store_true')
-    parser.add_argument('--actuator_network_dir', action='store', type=str, help='actuator_network_dir', required=False)
-    parser.add_argument('--history_len', action='store', type=int)
-    parser.add_argument('--future_len', action='store', type=int)
-    parser.add_argument('--prediction_len', action='store', type=int)
+    config_file = 'data_sampler.yaml'
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f)
+    main(config['act_policy'])
 
-    # for ACT
-    parser.add_argument('--kl_weight', action='store', type=int, help='KL Weight', required=False)
-    parser.add_argument('--chunk_size', action='store', type=int, help='chunk_size', required=False)
-    parser.add_argument('--hidden_dim', action='store', type=int, help='hidden_dim', required=False)
-    parser.add_argument('--dim_feedforward', action='store', type=int, help='dim_feedforward', required=False)
-    parser.add_argument('--temporal_agg', action='store_true')
-    parser.add_argument('--use_vq', action='store_true')
-    parser.add_argument('--vq_class', action='store', type=int, help='vq_class')
-    parser.add_argument('--vq_dim', action='store', type=int, help='vq_dim')
-    parser.add_argument('--no_encoder', action='store_true')
-    
-    
 
-    main(vars(parser.parse_args()))
+

@@ -87,6 +87,7 @@ pip install -e .
 
 ```bash
 pip install gymnasium
+pip install omegaconf
 # 解决rlbench和cv2的qt冲突
 pip uninstall opencv-python
 pip install opencv-python-headless
@@ -238,6 +239,16 @@ MP4播放工具：`sudo apt-get install smplayer`
 使用 tools，但tools只支持六维机械臂数据和三个相机
 
 ## imitate_episodes.py 训练 
+
+**方式一：**
+
+配置依赖 `data_sampler.yaml 中 的 ['act_policy']`
+
+```bash
+python act_training.py
+```
+
+**方式二：**
 
 配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`
 

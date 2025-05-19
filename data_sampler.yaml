@@ -1,5 +1,5 @@
 # 0 采样 1 重现 2 评估
-mode: 1
+mode: 2
 
 
 # ------------------ 采样 重现 数据转换 ------------------ 
@@ -7,8 +7,8 @@ data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
   taskname: 'pick_and_lift'
-  save_path_end: '20demos_static'
-  num_demos: 20
+  save_path_end: '100demos'
+  num_demos: 2
   image:
     width: 640
     height: 480
@@ -19,7 +19,7 @@ data_sampler_config:
     # - 'right_shoulder_camera'
     - 'overhead_camera'
   # 启用后所有demo的初始物体位置一样
-  static_positions: True
+  static_positions: False
   headless: False
   # robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
   robot_init_state: None
@@ -27,23 +27,23 @@ data_sampler_config:
 # ------------------ 训练/评估 ------------------  
 act_policy:
   'task_config':
-    'dataset_dir': 'data/pick_and_lift/20demos_static_hdf5'
-    'episode_len': 150  # 只影响评估
+    'dataset_dir': 'data/pick_and_lift/100demos_hdf5'
+    'episode_len': 250  # 只影响评估
     # 'train_ratio': 0.95
     'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
     # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
 
-  # eval 单独参数
   'show_3D_state': true
+  'ckpt_dir_end': '1'
   'ckpt_name': 'policy_best.ckpt'
-
+  'use_weight': false
   # 同 imitate_episodes.py 的所有 argparse 参数
   'eval': false
   'onscreen_render': false
-  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_8_10000_rgb'
+  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_4_10000_fwo'
   'policy_class': 'ACT'
   'task_name': 'pick_and_lift'
-  'batch_size': 8
+  'batch_size': 4
   'seed': 0
   'num_steps': 10000
   'lr': 0.00001
@@ -51,12 +51,12 @@ act_policy:
   'eval_every': 1000
   'validate_every': 1000
   'save_every': 1000
-  'resume_ckpt_path': None
+  'resume_ckpt_path': null
   'skip_mirrored_data': false
-  'actuator_network_dir': None
-  'history_len': None
-  'future_len': None
-  'prediction_len': None
+  'actuator_network_dir': null
+  'history_len': null
+  'future_len': null
+  'prediction_len': null
   # for ACT
   'kl_weight': 10
   'chunk_size': 100
@@ -64,8 +64,8 @@ act_policy:
   'dim_feedforward': 3200
   'temporal_agg': false
   'use_vq': false
-  'vq_class': None
-  'vq_dim': None
+  'vq_class': null
+  'vq_dim': null
   'no_encoder': False
 
 

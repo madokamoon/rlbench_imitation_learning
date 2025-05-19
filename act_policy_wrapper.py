@@ -15,54 +15,19 @@ from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
 
 class ACTPolicyWrapper:
 
-    def __init__(self, config):
+    def __init__(self, args):
 
         set_seed(1)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用设备: {self.device}")
 
-        # 命令行参数
-
-        args = {
-             # 原文件开头
-            'eval': config["eval"],
-            'ckpt_dir': config["ckpt_dir"],
-            "policy_class": config['policy_class'],
-            "onscreen_render": config["onscreen_render"],
-            'task_name': config['task_name'],
-            "batch_size": config['batch_size'],
-            'num_steps': config['num_steps'],
-            'eval_every': config['eval_every'],
-            'validate_every': config['validate_every'],
-            'save_every': config['save_every'],
-            'resume_ckpt_path': config['resume_ckpt_path'],
-             # 原文件 policy_config
-            'lr': config['lr'],
-            'num_queries': config['chunk_size'],
-            'kl_weight': config['kl_weight'],
-            'hidden_dim': config['hidden_dim'],
-            'dim_feedforward': config['dim_feedforward'],
-            'use_vq': config['use_vq'],
-            'vq_class': config['vq_class'],
-            'vq_dim': config['vq_dim'],
-            'no_encoder': config['no_encoder'],
-             # 原文件 actuator_config 
-            'actuator_network_dir': config['actuator_network_dir'],
-            'history_len': config['history_len'],
-            'future_len': config['future_len'],
-            'prediction_len': config['prediction_len'],
-             # 原文件 config
-            'seed': config['seed'],
-            'temporal_agg': config['temporal_agg'],
-            'load_pretrain': config['load_pretrain'],
-            # 我的参数
-            'ckpt_name': config['ckpt_name'],
-            'show_3D_state': config['show_3D_state']
-        }
-
         is_eval = args['eval']
+        
         ckpt_dir = args['ckpt_dir']
+        str_time = args['ckpt_dir_end']
+        ckpt_dir = os.path.join(ckpt_dir, str_time)
+
         policy_class = args['policy_class']
         onscreen_render = args['onscreen_render']
         task_name = args['task_name']
@@ -74,7 +39,7 @@ class ACTPolicyWrapper:
         save_every = args['save_every']
         resume_ckpt_path = args['resume_ckpt_path']
 
-        task_config = config.get('task_config')
+        task_config = args.get('task_config')
         dataset_dir = task_config['dataset_dir']
         episode_len = task_config['episode_len']
         camera_names = task_config['camera_names']
@@ -92,7 +57,7 @@ class ACTPolicyWrapper:
             dec_layers = 7
             nheads = 8
             policy_config = {'lr': args['lr'],
-                            'num_queries': args['num_queries'],
+                            'num_queries': args['chunk_size'],
                             'kl_weight': args['kl_weight'],
                             'hidden_dim': args['hidden_dim'],
                             'dim_feedforward': args['dim_feedforward'],
@@ -226,14 +191,16 @@ class ACTPolicyWrapper:
             self.all_time_actions_zeros = all_time_actions_zeros
             self.all_time_actions = all_time_actions_zeros
             
-        # 直接创建策略实例
+        # self
         self.policy = policy
         self.loading_status = loading_status
         self.temporal_agg = temporal_agg
         self.query_frequency = query_frequency
         self.camera_names = camera_names
         self.show_3D_state = args['show_3D_state']
+
         self.step = 0
+
 
         print("ACT模型加载完成")
     
@@ -350,13 +317,8 @@ class ACTPolicyWrapper:
                     ax.set_title(f'state and action (step {self.step})')
                     ax.legend()
 
-                    # 获取所有点的坐标范围
-                    all_points = np.vstack([
-                        [robot_state[0], robot_state[1], robot_state[2]],
-                        processed_actions[:, 0:3]
-                    ])
-                    max_range = np.max(np.ptp(all_points, axis=0)) / 2
-                    mid_x, mid_y, mid_z = np.mean(all_points, axis=0)
+                    max_range = 1.0
+                    mid_x, mid_y, mid_z = [0.0,0.0,0.7]
 
                     # 设置相等的坐标轴范围
                     ax.set_xlim(mid_x - max_range, mid_x + max_range)

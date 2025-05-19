@@ -35,23 +35,23 @@ class RLBenchProcessor:
         """
         # 加载配置
         with open(config_path, 'r') as f:
-            self.config = yaml.safe_load(f)
+            config = yaml.safe_load(f)
         
-        self.mode = self.config.get('mode', 0)
+        self.mode = config.get('mode', 0)
         print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
 
         # 从配置中获取参数
-        self.data_sampler_config = self.config.get('data_sampler_config', {})
-        self.save_path_head = self.data_sampler_config['save_path_head']
-        self.save_path_end = self.data_sampler_config['save_path_end']
-        self.taskname = self.data_sampler_config['taskname']
-        self.num_demos = self.data_sampler_config['num_demos']
-        self.image_width = self.data_sampler_config['image']['width']
-        self.image_height = self.data_sampler_config['image']['height']
-        self.camera_names = self.data_sampler_config['cameras']
-        self.static_positions = self.data_sampler_config['static_positions']
-        self.headless = self.data_sampler_config['headless']
-        self.robot_init_state = self.data_sampler_config['robot_init_state']
+        data_sampler_config = config.get('data_sampler_config', {})
+        self.save_path_head = data_sampler_config['save_path_head']
+        self.save_path_end = data_sampler_config['save_path_end']
+        self.taskname = data_sampler_config['taskname']
+        self.num_demos = data_sampler_config['num_demos']
+        self.image_width = data_sampler_config['image']['width']
+        self.image_height = data_sampler_config['image']['height']
+        self.camera_names = data_sampler_config['cameras']
+        self.static_positions = data_sampler_config['static_positions']
+        self.headless = data_sampler_config['headless']
+        self.robot_init_state = data_sampler_config['robot_init_state']
 
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
@@ -64,8 +64,11 @@ class RLBenchProcessor:
             self.variation_path = os.path.join(task_path, self.save_path_end)
    
         if self.mode == 2:
-            self.camera_names_forward = self.config['act_policy']['task_config']['camera_names']
-            self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
+            act_policy_config = config.get('act_policy')
+            self.camera_names_forward = act_policy_config['task_config']['camera_names']
+            self.use_weight = act_policy_config['use_weight']
+            self.max_steps =  act_policy_config['task_config']['episode_len']
+            self.act_policy = ACTPolicyWrapper(act_policy_config)
 
 
         self.env = None
@@ -589,15 +592,14 @@ class RLBenchProcessor:
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
         Args:
-            max_steps: 每次尝试的最大执行步数
             max_attempts: 最大尝试次数
 
         Returns:
             tuple: (成功率, 平均步骤数)
         """
-        from weight.weight import calculate_change_weight  # 导入计算权重的函数
-        
-        max_steps = self.config['act_policy']['task_config']['episode_len']
+        import traceback  # 导入traceback模块
+        from weight.weight import calculate_change_weight
+
         success_counts = 0  # 成功次数统计
         successful_steps = []  # 记录每次成功尝试的步骤数
         attempt = 0
@@ -630,40 +632,43 @@ class RLBenchProcessor:
 
                 # forceslist = []
 
-                for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
+                for step in tqdm(range(self.max_steps), desc=f"第 {attempt} 次尝试"):
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
                     formatted_state = [f"{val:8.5f}" for val in robot_state]
                     print(f"robot_state_:{formatted_state}")
 
-                    # 计算权重view_weights
-                    view_weights = []
-                    # if prev_images is not None:
-                    #     print("计算视角变化权重：")
-                    #     for cam_name in self.camera_names_forward:
-                    #         if cam_name in imgdata:
-                    #             curr_img = imgdata[f"{cam_name}_mask"]
-                    #             prev_img = prev_images[f"{cam_name}_mask"]
-                    #             # 计算变化权重
-                    #             weight = calculate_change_weight(prev_img, curr_img)
-                    #             view_weights.append(weight)
-                    #             print(f"  - {cam_name}: {weight:.4f}")
-                    
-                    # 如果有计算出权重，则使用它们；否则使用默认权重
-                    if view_weights and len(view_weights) == len(self.camera_names_forward):
-                        # 归一化权重，确保总和为相机数量（平均权重为1）
-                        total_weight = sum(view_weights)
-                        norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
-                        print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
-                        actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                    if self.use_weight :
+                        view_weights = []
+                        if prev_images is not None:
+                            print("计算视角变化权重：")
+                            for cam_name in self.camera_names_forward:
+                                if cam_name in imgdata:
+                                    curr_img = imgdata[f"{cam_name}_mask"]
+                                    prev_img = prev_images[f"{cam_name}_mask"]
+                                    # 计算变化权重
+                                    weight = calculate_change_weight(prev_img, curr_img)
+                                    view_weights.append(weight)
+                                    print(f"  - {cam_name}: {weight:.4f}")
+                            
+                            # 归一化权重，确保总和为相机数量（平均权重为1）
+                            total_weight = sum(view_weights)
+                            norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
+                            print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
+                            actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                        else:
+                            print("没有上一帧图像，使用默认权重")
+                            actaction = self.act_policy.get_actions(imgdata, robot_state)
+                            
+                        # 保存当前帧作为下一次迭代的上一帧
+                        prev_images = {}
+                        for cam_name in self.camera_names_forward:
+                            if cam_name in imgdata:
+                                prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
+
                     else:
                         actaction = self.act_policy.get_actions(imgdata, robot_state)
-
-                    # 保存当前帧作为下一次迭代的上一帧
-                    # prev_images = {}
-                    # for cam_name in self.camera_names_forward:
-                    #     if cam_name in imgdata:
-                    #         prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
+                        
 
                     # 模型输出转换为末端位姿控制
                     end_effector_pose = actaction[0:7].copy()
@@ -707,7 +712,8 @@ class RLBenchProcessor:
                             break
 
                     except Exception as e:
-                        print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
+                        print(f"\n第 {attempt} 次尝试执行动作时发生错误:")
+                        traceback.print_exc()  # 打印完整的堆栈跟踪
                         break
                 
                 # forces_array = np.array(forceslist)  
@@ -741,7 +747,8 @@ class RLBenchProcessor:
             return success_rate, avg_steps
 
         except Exception as e:
-            print(f"任务执行过程中发生错误: {e}")
+            print(f"任务执行过程中发生错误:")
+            traceback.print_exc()  # 打印完整的堆栈跟踪
             return 0, 0
 
         finally:
@@ -825,10 +832,10 @@ class RLBenchProcessor:
 if __name__ == "__main__":
 
     # 使用当前时间作为种子
-    seed = int(time.time()) 
-    np.random.seed(seed)
-    random.seed(seed)
-    print(f"使用随机种子: {seed}")
+    # seed = int(time.time()) 
+    # np.random.seed(seed)
+    # random.seed(seed)
+    # print(f"使用随机种子: {seed}")
 
     processor = RLBenchProcessor()
     processor.run()
