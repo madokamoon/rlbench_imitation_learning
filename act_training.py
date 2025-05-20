@@ -726,7 +726,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
     args = parser.parse_args()
 
-    if os.path.exists(args.config):
+    if args.config is not None and os.path.exists(args.config):
         with open(args.config, 'r') as f:
             print(f"使用命令行配置文件: {args.config}")
             config = yaml.safe_load(f)
