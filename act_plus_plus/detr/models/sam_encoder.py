@@ -3,7 +3,7 @@ from torch import nn
 from segment_anything import sam_model_registry
 
 class SAMEncoder(nn.Module):
-    def __init__(self, sam_checkpoint, model_type="vit_b", device="cuda"):
+    def __init__(self, sam_checkpoint, model_type="vit_h", device="cuda"):
         super().__init__()
         # 只加载图像编码器部分
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)

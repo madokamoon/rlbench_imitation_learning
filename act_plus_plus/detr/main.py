@@ -89,7 +89,7 @@ def get_args_parser():
     parser.add_argument('--use_sam', action='store_true', default=True, 
                         help='使用SAM视觉编码器')
     parser.add_argument('--sam_checkpoint', type=str, 
-                        default='/home/haoyue/python/sam_vit_h_4b8939.pth',
+                        default='/home/madoka/python/sam_vit_h_4b8939.pth',
                         help='SAM模型检查点路径')
     parser.add_argument('--sam_type', type=str, default='vit_h', 
                         choices=['vit_h', 'vit_l', 'vit_b'], 
