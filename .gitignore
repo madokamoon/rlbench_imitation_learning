@@ -1,15 +1,15 @@
 bin
 logs
 wandb
+_wandb
 outputs
 data
 training
 data_local
 .vscode
-_wandb
 data
-
-
+config_local
+data_sampler_local.yaml
 
 **/.DS_Store
 

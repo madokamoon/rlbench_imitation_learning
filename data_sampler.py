@@ -10,57 +10,80 @@ import time, datetime
 from tqdm import tqdm 
 import random
 import torch
+import pickle
+import gc  
+import matplotlib.pyplot as plt
+import sys 
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
 from rlbench.action_modes.gripper_action_modes import GripperJointPosition
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
-from act_plus.act_policy_wrapper import ACTPolicyWrapper
-
+from act_policy_wrapper import ACTPolicyWrapper
+from pyrep.backend import sim
 
 class RLBenchProcessor:
     """用于RLBench环境的数据采样与轨迹执行的综合处理器"""
     
-    def __init__(self, config_path='data_sampler.yaml'):
-        """
-        初始化处理器
-        
-        Args:
-            config_path: 配置文件路径
-        """
-        # 加载配置
-        with open(config_path, 'r') as f:
-            self.config = yaml.safe_load(f)
- 
-        # 从配置中获取参数
-        self.save_path_head = self.config.get('save_path_head')
-        self.save_path_end = self.config.get('save_path_end')
-        self.taskname = self.config.get('taskname')
-        self.num_demos = self.config.get('num_demos')
-        self.image_width = self.config['image']['width']
-        self.image_height = self.config['image']['height']
-        self.camera_names = self.config['cameras']
+    def __init__(self, config):
 
-        
-        # 确定运行模式 (采样 or 反应)
-        self.mode = self.config.get('mode', 0)
+        self.mode = config.get('mode', 0)
         print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
-        if self.mode == 1:
-            self.data_path = self.config['data_path']
-        elif self.mode == 2:
-            self.act_policy = ACTPolicyWrapper(self.config.get('act_policy'))
+
+        # 从配置中获取参数
+        data_sampler_config = config.get('data_sampler_config', {})
+        self.data_sampler_config = data_sampler_config
+        self.save_path_head = data_sampler_config['save_path_head']
+        self.save_path_end = data_sampler_config['save_path_end']
+        self.taskname = data_sampler_config['taskname']
+        self.num_demos = data_sampler_config['num_demos']
+        self.image_width = data_sampler_config['image']['width']
+        self.image_height = data_sampler_config['image']['height']
+        self.camera_names = data_sampler_config['cameras']
+        self.static_positions = data_sampler_config['static_positions']
+        self.headless = data_sampler_config['headless']
+        self.robot_init_state = data_sampler_config['robot_init_state']
+
+        # 保存路径
+        task_path = os.path.join(self.save_path_head, self.taskname)
+        if self.save_path_end == "":
+            now_time = datetime.datetime.now()
+            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+            self.variation_path = os.path.join(task_path, str_time) 
+            self.save_path_end = str_time
+        else:
+            self.variation_path = os.path.join(task_path, self.save_path_end)
+   
+        if self.mode == 2:
+            act_policy_config = config.get('act_policy')
+            self.camera_names_forward = act_policy_config['task_config']['camera_names']
+            self.use_weight = act_policy_config['use_weight']
+            self.max_steps =  act_policy_config['task_config']['episode_len']
+            self.act_policy = ACTPolicyWrapper(act_policy_config)
 
 
-        # 初始化环境和任务相关变量
         self.env = None
         self.task = None
         self.obs_config = None
 
     def _check_and_make(self, directory):
-        """创建目录（如果不存在）"""
         if not os.path.exists(directory):
             os.makedirs(directory)
+            print(f"创建目录: {directory}")
+        else :
+            user_input = input("输出路径已经存在，是否覆盖？(y/n): ")
+            if user_input.lower() == 'y':
+                import shutil
+                shutil.rmtree(directory)
+                print(f"已删除现有目录: {directory}")
+                os.makedirs(directory)
+                print(f"创建目录: {directory}")
+            else:
+                print("操作已取消")
+                sys.exit(0) 
+                return
+
             
     def _check_path_exists(self, directory):
         """检查路径是否存在"""
@@ -103,10 +126,37 @@ class RLBenchProcessor:
         obs_config.gripper_pose = True 
         obs_config.gripper_joint_positions = True
         obs_config.gripper_matrix = True
-        obs_config.gripper_touch_forces = False
+        obs_config.gripper_touch_forces = True 
         # obs_config.record_gripper_closing = True  # 会卡很久
           
         return obs_config
+    
+        # 更多ObservationConfig 可配置参数：
+
+        # | 属性名                       | 类型             | 说明                  |
+        # | ------------------------- | -------------- | ------------------- |
+        # | `front_camera`            | `CameraConfig` | 前置摄像头配置（RGB/深度/分割等） |
+        # | `left_shoulder_camera`    | `CameraConfig` | 左肩摄像头配置             |
+        # | `right_shoulder_camera`   | `CameraConfig` | 右肩摄像头配置             |
+        # | `overhead_camera`         | `CameraConfig` | 俯视摄像头配置             |
+        # | `wrist_camera`            | `CameraConfig` | 手腕摄像头配置             |
+        # | `wrist_camera_matrix`     | `bool`         | 是否返回手腕摄像头的 4x4 变换矩阵 |
+        # | `gripper_open`            | `bool`         | 返回夹爪是否张开（开/合）       |
+        # | `gripper_pose`            | `bool`         | 返回夹爪的世界位姿（位置 + 方向）  |
+        # | `gripper_joint_positions` | `bool`         | 返回夹爪的各个关节角度         |
+        # | `gripper_matrix`          | `bool`         | 返回夹爪的 4x4 变换矩阵      |
+        # | `gripper_touch_forces`    | `bool`         | 返回夹爪的触觉接触力量         |
+        # | `joint_positions`         | `bool`         | 返回机械臂的各个关节位置        |
+        # | `joint_velocities`        | `bool`         | 返回机械臂的各个关节速度        |
+        # | `joint_forces`            | `bool`         | 返回机械臂的各个关节受力（力矩）    |
+        # | `joint_positions_noise`   | `NoiseModel`   | 对关节位置加入噪声的模型        |
+        # | `joint_velocities_noise`  | `NoiseModel`   | 对关节速度加入噪声的模型        |
+        # | `joint_forces_noise`      | `NoiseModel`   | 对关节力加入噪声的模型         |
+        # | `task_low_dim_state`      | `bool`         | 是否返回任务的低维状态（手工特征）   |
+        # | `record_gripper_closing`  | `bool`         | 是否记录夹爪闭合过程（用于数据集生成） |
+
+
+
 
     def task_file_to_task_class(self, task_file):
         class_name = ''.join([w[0].upper() + w[1:] for w in task_file.split('_')])
@@ -125,32 +175,33 @@ class RLBenchProcessor:
         pprint(self.obs_config.__dict__)
         print("\n")
         
-        print("设置RLBench环境...")
-        
-        # 根据模式选择不同的控制方式
         if self.mode == 1 or self.mode == 2:
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
-            print("使用末端位姿控制模式进行轨迹执行")
-        elif self.mode == 0:
+            print("末端位姿控制模式")
+        elif self.mode == 0 :
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
                 gripper_action_mode=GripperJointPosition(absolute_mode=True))
-            print("使用关节速度控制模式进行数据采样")
+            print("关节速度控制模式")
             
         # 创建并配置RLBench环境
         self.env = Environment(
             action_mode=action_mode,
             obs_config=self.obs_config, 
-            headless=False,
-            # static_positions=True,
+            headless=self.headless,
         )
             
+        # 使用sim模块直接设置物理引擎参数 
+        # sim.simSetEngineFloatParameter()
+        # sim.simSetEngineFloatParameter()
+
+
         self.env.launch()
-        print("环境启动成功")
+        print("rlbench环境启动成功")
 
     def load_task(self):
         """加载指定的任务"""
@@ -158,7 +209,6 @@ class RLBenchProcessor:
         task_class,classname = self.task_file_to_task_class(self.taskname)
         print(f"加载任务类: {classname}")
         self.task = self.env.get_task(task_class)
-        print("任务加载成功")
 
     def save_demo_raw(self, demo, example_path, ex_idx):
         """
@@ -182,7 +232,7 @@ class RLBenchProcessor:
             camera_folder_depth.mkdir(parents=True, exist_ok=True)
             camera_folder_mask.mkdir(parents=True, exist_ok=True)
 
-        
+
         # 初始化数据存储
         state_data = {}
         
@@ -277,7 +327,6 @@ class RLBenchProcessor:
 
                 if mask_img is not None:
 
-
                     # 处理掩码图像
                     # 创建空白RGB图像
                     mask_array = mask_img
@@ -292,10 +341,6 @@ class RLBenchProcessor:
                     mask_image = np.clip(rgb_array, 0, 255).astype(np.uint8)
                     Image.fromarray(mask_image).save(str(mask_path))
 
-
-
-
-        
         # 保存状态数据到JSON文件
         state_json_path = episode_folder.joinpath("state.json")
         with open(str(state_json_path), 'w') as json_file:
@@ -305,36 +350,72 @@ class RLBenchProcessor:
 
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
-        import gc  # 导入垃圾回收模块
+    
+        self._check_and_make(self.variation_path)
 
-        # 创建保存路径
-        task_path = os.path.join(self.save_path_head, self.taskname)
+        config_save_path = os.path.join(self.variation_path, "data_sampler_config.yaml")
+        with open(config_save_path, 'w') as f:
+            yaml.dump(self.data_sampler_config, f, default_flow_style=False)
+    
+        print(f"本次运行配置已保存到: {config_save_path}")
 
-        if self.save_path_end == "":
-            now_time = datetime.datetime.now()
-            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-            variation_path = os.path.join(task_path, str_time) 
-            self.save_path_end = str_time
-        else:
-            variation_path = os.path.join(task_path, self.save_path_end)
+        if self.static_positions == True:
 
-        self._check_and_make(variation_path)
+            print("静态位置模式")
+            # 环境状态保存路径
+            env_state_path = os.path.join(self.variation_path, "initial_state.pickle")
+            descriptions, first_obs = self.task.reset()
+            random_state = random.getstate()
+            numpy_state = np.random.get_state()
+            reference_demo = self.task.get_demos(1, live_demos=True)[0]
+            # 只保留第一个观察
+            if len(reference_demo._observations) > 1:
+                first_obs = reference_demo._observations[0]
+                reference_demo._observations = [first_obs]
+            # 保存环境信息
+            env_info = {
+                'descriptions': descriptions,
+                'random_state': random_state,
+                'numpy_state': numpy_state,
+                'reference_demo': reference_demo,  # 保存参考演示对象
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+            with open(env_state_path, 'wb') as f:
+                pickle.dump(env_info, f)
+            
+            print(f"初始环境配置已保存到: {env_state_path}")
+
+            del reference_demo
+            gc.collect() 
+
+            reference_demo, random_state, numpy_state = self.load_reference_demo()
 
         # 逐个收集和保存demo
         for i in range(self.num_demos):
             print(f'收集和保存演示 {i}/{self.num_demos}')
             
+            if self.static_positions == True:
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
+                self.task.reset_to_demo(reference_demo)
+                # 收集的时候不能加上这句，其他情况需要加上，原因为 task.get_demos 中会调用 reset()
+                # descriptions, obs = self.task.reset()  
+            else:
+                pass
+                # descriptions, obs = self.task.reset()
+
+            if self.robot_init_state is not None:
+                    self.task.step(self.robot_init_state)
+
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
             
             # 保存这个demo
-            self.save_demo_raw(demo, variation_path, i)
+            self.save_demo_raw(demo, self.variation_path, i)
             
             # 显式释放内存
             del demo
             gc.collect()  
-
-        print(f'数据集已保存到 {variation_path}')
 
     def load_trajectory(self, trajectory_path):
         """
@@ -363,32 +444,24 @@ class RLBenchProcessor:
             trajectory_data: 包含机械臂轨迹的字典
             epoch_idx: 当前epoch的索引
         """
-        # 重置任务
-        print("重置任务...")
-        descriptions, obs = self.task.reset()
-        print("任务描述: ", descriptions)
-        
+
         # 按顺序执行轨迹
         print(f"开始执行轨迹 (Epoch {epoch_idx})...")
         trajectory_keys = sorted([int(k) for k in trajectory_data.keys()])
         
         for t in tqdm(trajectory_keys, desc=f"Epoch {epoch_idx} 执行进度"):
+
             frame_data = trajectory_data[str(t)]
             
             # 提取末端位姿和夹爪动作
             pose = frame_data['robot_state']  # [x, y, z, qx, qy, qz, qw]
             
-            # 获取夹爪开合状态 (0-1范围)
+            # 获取夹爪开合状态 
             gripper_open = frame_data.get('grasp_state', [0])[0]
-            
-            # 如果grasp_action不是0-1范围(是0-0.04)，需要归一化
-            if gripper_open > 0 and gripper_open <= 0.04:
-                gripper_joint_position = gripper_open  # 已经是关节位置
-            else:
-                # GripperJointPosition需要将0-1范围映射到0-0.04范围
-                gripper_joint_position = gripper_open * 0.04
-            
-            # 执行动作
+            gripper_joint_position = 0.04 * float(gripper_open > 0.5) 
+
+
+            # 执行动作.
             action = np.array(pose + [gripper_joint_position])
             obs, reward, terminate = self.task.step(action)
             
@@ -467,79 +540,163 @@ class RLBenchProcessor:
 
 
         import copy
-        # 提取机器人状态
-        robot_state = list(obs.joint_positions)  # 关节位置
-        robot_state.append(float(1 - obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
-        robot_state = list(copy.deepcopy(obs.gripper_pose))  # 关节位置
-        robot_state.append(copy.deepcopy(obs.gripper_open))  # 夹爪状态（1=关闭，0=打开）
+
+        # 关节控制
+        # robot_state = list(copy.deepcopy(obs.joint_positions)) 
+        # robot_state.append(copy.deepcopy(obs.gripper_open))  
+
+        # 末端位姿控制
+        robot_state = list(copy.deepcopy(obs.gripper_pose)) 
+        robot_state.append(copy.deepcopy(obs.gripper_open)) 
 
         return imgdata, robot_state
 
-    def act_eval(self, max_steps=250, max_attempts=5):
+    def load_reference_demo(self):   
+
+        reference_demo = None
+        random_state = None
+        numpy_state = None
+
+        env_state_path = os.path.join(self.variation_path, "initial_state.pickle")
+        if env_state_path and os.path.exists(env_state_path):
+            print(f"加载环境状态数据: {env_state_path}")
+            try:
+                with open(env_state_path, 'rb') as f:
+                    env_info = pickle.load(f)
+            
+                # 获取存储的状态
+                random_state = env_info.get('random_state')
+                numpy_state = env_info.get('numpy_state')
+                reference_demo = env_info.get('reference_demo')  # 直接获取保存的参考演示
+                descriptions = env_info.get('descriptions')
+                
+                print(f"成功加载环境状态，描述: {descriptions}")
+                return reference_demo,random_state,numpy_state
+        
+            except Exception as e:
+                print(f"加载环境状态失败: {e}")
+                env_state_path = None
+                return None
+
+
+    def act_eval(self, max_attempts=20):
         """
-        执行指定任务，失败时自动重试
+        执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
         Args:
-            max_steps: 每次尝试的最大执行步数
             max_attempts: 最大尝试次数
 
         Returns:
-            success: 任务是否成功完成
+            tuple: (成功率, 平均步骤数)
         """
-        success = False
+        import traceback  # 导入traceback模块
+        from weight.weight import calculate_change_weight
+
+        success_counts = 0  # 成功次数统计
+        successful_steps = []  # 记录每次成功尝试的步骤数
         attempt = 0
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        
+        if self.static_positions == True:
+            reference_demo,random_state,numpy_state = self.load_reference_demo()
+
         try:
-            while not success and attempt < max_attempts:
+            while attempt < max_attempts:
                 attempt += 1
                 print(f"\n开始第 {attempt}/{max_attempts} 次尝试执行任务")
                 
-                # 重置任务获取初始观察
+                if self.static_positions == True:
+                    random.setstate(random_state)
+                    np.random.set_state(numpy_state)
+                    self.task.reset_to_demo(reference_demo)
+                    descriptions, obs = self.task.reset()
 
-                descriptions, obs = self.task.reset()
+
+                else:
+                    descriptions, obs = self.task.reset()
+
+
                 self.act_policy.reset()
-                print(f"任务描述: {descriptions}")
+                # 用于存储上一帧的图像
+                prev_images = None
                 
                 # 执行控制循环
-                for step in tqdm(range(max_steps), desc=f"第 {attempt} 次尝试"):
+                success_in_this_attempt = False
+
+                # forceslist = []
+
+                for step in tqdm(range(self.max_steps), desc=f"第 {attempt} 次尝试"):
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
-                    print(f"机器人状态: {robot_state}")
+                    formatted_state = [f"{val:8.5f}" for val in robot_state]
+                    print(f"robot_state_:{formatted_state}")
 
-                    # 使用ACT模型获取动作
-                    actaction = self.act_policy.get_actions(imgdata, robot_state)
+                    if self.use_weight :
+                        view_weights = []
+                        if prev_images is not None:
+                            print("计算视角变化权重：")
+                            for cam_name in self.camera_names_forward:
+                                if cam_name in imgdata:
+                                    curr_img = imgdata[f"{cam_name}_mask"]
+                                    prev_img = prev_images[f"{cam_name}_mask"]
+                                    # 计算变化权重
+                                    weight = calculate_change_weight(prev_img, curr_img)
+                                    view_weights.append(weight)
+                                    print(f"  - {cam_name}: {weight:.4f}")
+                            
+                            # 归一化权重，确保总和为相机数量（平均权重为1）
+                            total_weight = sum(view_weights)
+                            norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
+                            print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
+                            actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                        else:
+                            print("没有上一帧图像，使用默认权重")
+                            actaction = self.act_policy.get_actions(imgdata, robot_state)
+                            
+                        # 保存当前帧作为下一次迭代的上一帧
+                        prev_images = {}
+                        for cam_name in self.camera_names_forward:
+                            if cam_name in imgdata:
+                                prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
+
+                    else:
+                        actaction = self.act_policy.get_actions(imgdata, robot_state)
+                        
 
                     # 模型输出转换为末端位姿控制
-                    # 模型输出的前7个值作为位置和四元数 [x, y, z, qx, qy, qz, qw]
-                    end_effector_pose = actaction[0:7].copy()  # 避免原地修改 actaction
+                    end_effector_pose = actaction[0:7].copy()
 
                     # 单位化四元数
                     quat = end_effector_pose[3:7]
                     norm = np.linalg.norm(quat)
                     if norm < 1e-6:
-                        # 默认使用单位四元数，避免除以零
                         quat = np.array([0.0, 0.0, 0.0, 1.0])
                     else:
                         quat = quat / norm
                     end_effector_pose[3:7] = quat
 
-                    # 夹爪控制 - 从二值转换为连续值
+                    # 夹爪控制
                     gripper_value = actaction[7]
-
-                    # 将夹爪值转换为关节位置 (0-0.04范围)
                     gripper_joint_position = 0.04 * float(gripper_value > 0.5)
 
                     # 执行动作
                     try:
-                        # 合并末端位姿和夹爪关节位置
                         action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
-                        print(f"执行动作: {action}")
+                        formatted_action = [f"{val:8.5f}" for val in action]
+                        print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
 
-                        # 检查任务是否成功完成
+                        # forceslist.append(obs.gripper_touch_forces)
+                        # formatted_forces = [f"{val:8.5f}" for val in obs.gripper_touch_forces]
+                        # print(f"touch_forces:{formatted_forces}")
+
+
+
+                        # 检查任务状态
                         if reward == 1.0:
-                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功!")
-                            success = True
+                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功! 使用步骤: {step+1}")
+                            success_counts += 1
+                            successful_steps.append(step+1)  # 记录成功所需的步骤数
+                            success_in_this_attempt = True
                             break
 
                         if terminate:
@@ -547,40 +704,62 @@ class RLBenchProcessor:
                             break
 
                     except Exception as e:
-                        print(f"\n第 {attempt} 次尝试执行动作时发生错误: {e}")
+                        print(f"\n第 {attempt} 次尝试执行动作时发生错误:")
+                        traceback.print_exc()  # 打印完整的堆栈跟踪
                         break
                 
-                if not success and attempt < max_attempts:
+                # forces_array = np.array(forceslist)  
+                # 获取力传感器数量
+                # num_sensors = forces_array.shape[1]
+                # time_steps = forces_array.shape[0]
+                # plt.figure(figsize=(12, 6))
+                # for i in range(num_sensors):
+                #     plt.plot(range(time_steps), forces_array[:, i], label=f'force {i+1}')
+                # plt.grid(True)
+                # plt.legend()
+                # plt.show()
+
+                if not success_in_this_attempt and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
-                    time.sleep(1)  # 短暂等待后重试
+                    time.sleep(1)
             
-            print(f"\n任务执行结束. {'成功' if success else f'全部 {attempt} 次尝试均失败'}")
-            return success
+            # 计算统计结果
+            success_rate = success_counts / attempt if attempt > 0 else 0
+            avg_steps = sum(successful_steps) / len(successful_steps) if successful_steps else 0
+            
+            print(f"\n===== 评估结果统计 =====")
+            print(f"- 总尝试次数: {attempt}")
+            print(f"- 成功次数: {success_counts}")
+            print(f"- 成功率: {success_rate:.2%}")
+            print(f"- 平均成功步骤数: {avg_steps:.2f}")
+            if successful_steps:
+                print(f"- 最少步骤数: {min(successful_steps)}")
+                print(f"- 最多步骤数: {max(successful_steps)}")
+            
+            return success_rate, avg_steps
 
         except Exception as e:
-            print(f"任务执行过程中发生错误: {e}")
-            return False
+            print(f"任务执行过程中发生错误:")
+            traceback.print_exc()  # 打印完整的堆栈跟踪
+            return 0, 0
 
         finally:
             # 只在所有尝试结束后关闭环境
-            if self.env is not None and attempt >= max_attempts or success:
+            if self.env is not None and attempt >= max_attempts:
                 self.env.shutdown()
                 print("RLBench环境已关闭")
 
-
-
-
     def process_all_epochs(self):
         """处理所有的epoch（遍历数据文件夹中的所有子文件夹）"""
-        print(f"处理来自路径的所有轨迹: {self.data_path}")
+        print(f"处理来自路径的所有轨迹: {self.variation_path}")
         
         # 检查基础路径是否存在
-        self._check_path_exists(self.data_path)
+        self._check_path_exists(self.variation_path)
         
         # 获取所有子文件夹（epoch）
         epoch_folders = []
-        for item in os.listdir(self.data_path):
-            item_path = os.path.join(self.data_path, item)
+        for item in os.listdir(self.variation_path):
+            item_path = os.path.join(self.variation_path, item)
             # 只处理文件夹且确保有state.json文件
             if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, 'state.json')):
                 epoch_folders.append(item)
@@ -589,19 +768,31 @@ class RLBenchProcessor:
         epoch_folders = sorted(epoch_folders, key=lambda x: int(x) if x.isdigit() else float('inf'))
         
         if not epoch_folders:
-            print(f"警告: 在 {self.data_path} 中未找到有效的轨迹数据")
+            print(f"警告: 在 {self.variation_path} 中未找到有效的轨迹数据")
             return
             
         print(f"找到 {len(epoch_folders)} 个轨迹")
         
+
+        if self.static_positions == True:
+            reference_demo, random_state, numpy_state = self.load_reference_demo()
+
         # 遍历执行每个epoch
         for epoch in epoch_folders:
-            epoch_path = os.path.join(self.data_path, epoch)
+            epoch_path = os.path.join(self.variation_path, epoch)
             print(f"\n处理轨迹: {epoch_path}")
             
             # 加载轨迹
             trajectory_data = self.load_trajectory(epoch_path)
             
+            if self.static_positions == True:
+                random.setstate(random_state)
+                np.random.set_state(numpy_state)
+                self.task.reset_to_demo(reference_demo)
+                descriptions, obs = self.task.reset()
+            else:
+                descriptions, obs = self.task.reset()
+
             # 执行轨迹
             self.execute_trajectory(trajectory_data, epoch)
             
@@ -614,12 +805,12 @@ class RLBenchProcessor:
             self.setup_environment()
             self.load_task()
             
-            if self.mode == 1:
-                print("以轨迹复现模式运行...")
-                self.process_all_epochs()
-            elif self.mode == 0:
+            if self.mode == 0:
                 print("以数据采样模式运行...")
                 self.collect_and_save_demos()
+            elif self.mode == 1:
+                print("以轨迹复现模式运行...")
+                self.process_all_epochs()
             elif self.mode == 2:
                 print("以评估模式运行...")
                 self.act_eval()
@@ -630,16 +821,36 @@ class RLBenchProcessor:
                 print("环境已关闭")
 
 
+
+
 if __name__ == "__main__":
-    # 创建并运行处理器
 
-    # 在程序开始处添加
-    seed = int(time.time()) # 使用当前时间作为种子
-    np.random.seed(seed)
-    random.seed(seed)
-    print(f"使用随机种子: {seed}")
+    # 使用当前时间作为种子
+    # seed = int(time.time()) 
+    # np.random.seed(seed)
+    # random.seed(seed)
+    # print(f"使用随机种子: {seed}")'
 
-    processor = RLBenchProcessor()
+
+    import argparse
+    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
+    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
+    args = parser.parse_args()
+
+    if args.config is not None and os.path.exists(args.config):
+        with open(args.config, 'r') as f:
+            print(f"使用命令行配置文件: {args.config}")
+            config = yaml.safe_load(f)
+    elif os.path.exists('data_sampler_local.yaml'):
+        with open('data_sampler_local.yaml', 'r') as f:
+            print("使用本地配置文件 data_sampler_local.yaml")
+            config = yaml.safe_load(f)
+    else:
+        with open('data_sampler.yaml', 'r') as f:
+            print("使用默认配置文件 data_sampler.yaml")
+            config = yaml.safe_load(f)
+
+    processor = RLBenchProcessor(config)
     processor.run()
 
 

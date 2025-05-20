@@ -1,5 +1,5 @@
 # imitation_learning 相对路径
-datapath: "data/pick_and_lift/50demos"
+datapath: "data/pick_and_lift/20demos_static"
 
 gifshow: True
 # gifshow: False
