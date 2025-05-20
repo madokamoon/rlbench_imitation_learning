@@ -202,13 +202,15 @@ act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
 
 ## mode=0 数据收集
 
+运行配置会保存至 `save_path_end/data_sampler_config.yaml`
+
 配置文件中的`taskname` 的可用任务名称参见 `RLBench/rlbench/tasks` 文件夹
 
 ```bash
 python data_sampler.py
 python data_sampler.py --config config.yaml
 ```
-保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳`
+保存路径为 `save_path_head/taskname/save_path_end(空白为时间戳)`
 
 ## mode=1 数据重现
 
@@ -228,7 +230,7 @@ python data_sampler.py --config config.yaml
 python data_proccess.py
 python data_proccess.py --config config.yaml --threads 12 
 ```
-保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳_hdf5`
+保存路径为 `save_path_head/taskname/save_path_end(空白为时间戳)_hdf5`
 
 ## 可视化 
 
@@ -240,13 +242,15 @@ python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/p
 
 MP4播放工具：`sudo apt-get install smplayer`
 
-使用 https://myhdf5.hdfgroup.org/ 网页工具
+hdf5网页工具  https://myhdf5.hdfgroup.org/ 
 
 使用 tools，但tools只支持六维机械臂数据和三个相机
 
 ## imitate_episodes.py 训练 
 
 **配置文件方式：**
+
+运行配置会保存至 `ckpt_dir/training_config.yaml`
 
 ```bash
 python act_training.py

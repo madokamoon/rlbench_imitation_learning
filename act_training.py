@@ -52,6 +52,15 @@ def main(args):
     str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
     ckpt_dir = os.path.join(ckpt_dir, str_time)
 
+    if not os.path.exists(ckpt_dir):
+        os.makedirs(ckpt_dir)
+        print(f"创建目录: {ckpt_dir}")
+    config_save_path = os.path.join(ckpt_dir, "training_config.yaml")
+    with open(config_save_path, 'w') as f:
+        yaml.dump(args, f, default_flow_style=False)
+    print(f"本次运行配置已保存到: {config_save_path}")
+
+
     policy_class = args['policy_class']
     onscreen_render = args['onscreen_render']
     task_name = args['task_name']

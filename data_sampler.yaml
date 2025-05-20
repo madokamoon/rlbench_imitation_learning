@@ -6,7 +6,7 @@
 mode: 2
 
 
-# ------------------ 采样 重现 数据转换 ------------------ 
+# ------------------ 采样 重现 数据转换 评估 ------------------ 
 data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
@@ -28,14 +28,16 @@ data_sampler_config:
   # robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
   robot_init_state: null
 
-# ------------------ 训练/评估 ------------------  
+# ------------------ 训练 评估 ------------------   
 act_policy:
   'task_config':
     'dataset_dir': 'data/pick_and_lift/100demos_hdf5'
     'episode_len': 250  # 只影响评估
     # 'train_ratio': 0.95
-    'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera']
-    # 'camera_names': ['front_camera', 'wrist_camera', 'overhead_camera','front_camera_mask', 'wrist_camera_mask', 'overhead_camera_mask']
+    camera_names:
+    - front_camera
+    - wrist_camera
+    - overhead_camera
 
   'show_3D_state': true
   'ckpt_dir_end': '1'
