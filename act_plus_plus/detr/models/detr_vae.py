@@ -34,7 +34,7 @@ def get_sinusoid_encoding_table(n_position, d_hid):
 
 class DETRVAE(nn.Module):
     """ This is the DETR module that performs object detection """
-    def __init__(self, backbones, transformer, encoder, state_dim, num_queries, camera_names, vq, vq_class, vq_dim, action_dim):
+    def __init__(self, backbones, transformer, encoder, state_dim, num_queries, camera_names, vq, vq_class, vq_dim, action_dim, use_sam=False, sam_checkpoint=None):
         """ Initializes the model.
         Parameters:
             backbones: torch module of the backbone to be used. See backbone.py
@@ -55,6 +55,27 @@ class DETRVAE(nn.Module):
         self.action_head = nn.Linear(hidden_dim, action_dim)
         self.is_pad_head = nn.Linear(hidden_dim, 1)
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
+        
+        # SAM集成相关
+        self.use_sam = use_sam
+        if self.use_sam and sam_checkpoint is not None:
+            from .sam_encoder import SAMEncoder
+            
+            # 为每个相机创建SAM编码器
+            self.sam_encoders = nn.ModuleList([
+                SAMEncoder(sam_checkpoint=sam_checkpoint) 
+                for _ in camera_names
+            ])
+            
+            # SAM特征投影层，将SAM特征映射到transformer隐藏维度
+            # 假设SAM输出特征维度为"sam_feature_dim"
+            sam_feature_dim = 256  # 根据SAM模型调整此值
+            self.sam_proj = nn.Conv2d(sam_feature_dim, hidden_dim, kernel_size=1)
+            
+            # 特征融合参数
+            self.feature_fusion_weight = nn.Parameter(torch.ones(2) / 2)
+            self.softmax = nn.Softmax(dim=0)
+        
         if backbones is not None:
             self.input_proj = nn.Conv2d(backbones[0].num_channels, hidden_dim, kernel_size=1)
             self.backbones = nn.ModuleList(backbones)
@@ -143,10 +164,6 @@ class DETRVAE(nn.Module):
 
         return latent_input, probs, binaries, mu, logvar
 
-    # 原代码  
-    # def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None):
-    
-    # act修改 forward 传入参数
     def forward(self, qpos, image, env_state, actions=None, is_pad=None, vq_sample=None, view_weights=None):
         """
         qpos: batch, qpos_dim
@@ -163,31 +180,39 @@ class DETRVAE(nn.Module):
             all_cam_features = []
             all_cam_pos = []
             for cam_id, cam_name in enumerate(self.camera_names):
+                # 原始骨干网络特征提取
                 features, pos = self.backbones[cam_id](image[:, cam_id])
-                features = features[0] # take the last layer feature
+                features = features[0]  # 取最后一层特征
                 pos = pos[0]
-
-
-                # 原代码   
-                # all_cam_features.append(self.input_proj(features))
-                # all_cam_pos.append(pos)
-
-                # act修改 对 self.input_proj(features) 乘上权重，view_weights 默认为 None 时不起作用，等同于原代码
-                cam_features = self.input_proj(features)
                 
+                backbone_features = self.input_proj(features)
+                
+                # 如果启用SAM，提取SAM特征并进行融合
+                if self.use_sam:
+                    with torch.no_grad():
+                        sam_features = self.sam_encoders[cam_id](image[:, cam_id])
+                    
+                    # 投影SAM特征到相同维度
+                    sam_features = self.sam_proj(sam_features)
+                    
+                    # 特征融合 - 使用学习的权重
+                    fusion_weights = self.softmax(self.feature_fusion_weight)
+                    cam_features = fusion_weights[0] * backbone_features + fusion_weights[1] * sam_features
+                else:
+                    cam_features = backbone_features
+                
+                # 应用视角权重（如果提供）
                 if view_weights is not None:
-                    # 确保权重在GPU上且形状正确
                     if isinstance(view_weights, list):
                         weight = view_weights[cam_id]
                     else:  # 假设是tensor
                         weight = view_weights[cam_id].item() if view_weights.numel() > 1 else view_weights.item()
                     cam_features = cam_features * weight
-                    
+                
                 all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
-
-
             
+            # 其余代码保持不变
             # proprioception features
             proprio_input = self.input_proj_robot_state(qpos)
             # fold camera dimension into width dimension
@@ -195,14 +220,15 @@ class DETRVAE(nn.Module):
             pos = torch.cat(all_cam_pos, axis=3)
             hs = self.transformer(src, None, self.query_embed.weight, pos, latent_input, proprio_input, self.additional_pos_embed.weight)[0]
         else:
+            # 无骨干网络时的处理逻辑保持不变
             qpos = self.input_proj_robot_state(qpos)
             env_state = self.input_proj_env_state(env_state)
-            transformer_input = torch.cat([qpos, env_state], axis=1) # seq length = 2
+            transformer_input = torch.cat([qpos, env_state], axis=1)  # seq length = 2
             hs = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight)[0]
+            
         a_hat = self.action_head(hs)
         is_pad_hat = self.is_pad_head(hs)
         return a_hat, is_pad_hat, [mu, logvar], probs, binaries
-
 
 
 class CNNMLP(nn.Module):
@@ -307,9 +333,11 @@ def build(args):
     if args.no_encoder:
         encoder = None
     else:
-        # act修改 代码本身错误 参考
-        # encoder = build_transformer(args)
         encoder = build_encoder(args)
+
+    # 增加SAM相关参数
+    use_sam = getattr(args, 'use_sam', False)
+    sam_checkpoint = getattr(args, 'sam_checkpoint', None)
 
     model = DETRVAE(
         backbones,
@@ -322,6 +350,8 @@ def build(args):
         vq_class=args.vq_class,
         vq_dim=args.vq_dim,
         action_dim=args.action_dim,
+        use_sam=use_sam,
+        sam_checkpoint=sam_checkpoint
     )
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
