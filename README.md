@@ -185,21 +185,19 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 
 ## 文件说明
 
-data_sampler.yaml：集成采集，重现，转换，训练，测试的配置
+data_sampler.yaml：集成采集，重现，转换，训练，测试的默认配置
 
-若存在 data_sampler_local.yaml 优先使用
+**配置文件优先级：** 命令行指定 > data_sampler_local.yaml > data_sampler.yaml
 
 data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
 
 data_proccess.py ：数据转换功能，转换为hdf5同时计算权重
 
+act_training.py ：训练
+
 act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
 
-weight.py ：互信息计算
 
-weight_visualization.py ：权重可视化
-
-> weight_distribution 相关的 mp4 gif png 四个文件是一个例子，weight使用每个视角的mask进行计算
 
 
 ## mode=0 数据收集
@@ -208,6 +206,7 @@ weight_visualization.py ：权重可视化
 
 ```bash
 python data_sampler.py
+python data_sampler.py --config config.yaml
 ```
 保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳`
 
@@ -219,10 +218,15 @@ python data_sampler.py
 
 ```bash
 python data_sampler.py
+python data_sampler.py --config config.yaml
 ```
 ## data_proccess.py 数据转换
+
+默认为全部线程
+
 ```bash
 python data_proccess.py
+python data_proccess.py --config config.yaml --threads 12 
 ```
 保存路径为 `save_path_head + taskname + save_path_end/空白为时间戳_hdf5`
 
@@ -242,43 +246,30 @@ MP4播放工具：`sudo apt-get install smplayer`
 
 ## imitate_episodes.py 训练 
 
-**方式一：**
-
-配置依赖 `data_sampler.yaml 中 的 ['act_policy']`
+**配置文件方式：**
 
 ```bash
 python act_training.py
+python act_training.py --config config.yaml
 ```
 
-**方式二：**
+**原始方式：**
 
 配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`
 
-
 ```bash
 CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_fwo  --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
-
 ```
 
 ## mode=2 仿真测试
 
-配置依赖  `data_sampler.yaml 中 的 ['act_policy']`
-
 ```bash
 python data_sampler.py
+python data_sampler.py --config config.yaml
 ```
 
 
 # 三、其他
 
-## 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
+搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
 
-
-## 常用指令
-
-```bash
-# 在电脑和服务器间复制数据
-scp -r ~/python/rlbench_imitation_learning/data/pick_and_lift/100demos_hdf5/ haoyue@100.100.3.3:~/code/rlbench_imitation_learning/data/pick_and_lift
-
-scp -r haoyue@100.100.3.3:~/code/rlbench_imitation_learning/training/pick_and_lift/20demos_static_hdf5_8_4000_fwo ~/python/rlbench_imitation_learning/training/pick_and_lift
-```

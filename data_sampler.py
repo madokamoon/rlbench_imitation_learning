@@ -821,6 +821,8 @@ class RLBenchProcessor:
                 print("环境已关闭")
 
 
+
+
 if __name__ == "__main__":
 
     # 使用当前时间作为种子
@@ -829,7 +831,17 @@ if __name__ == "__main__":
     # random.seed(seed)
     # print(f"使用随机种子: {seed}")'
 
-    if os.path.exists('data_sampler_local.yaml'):
+
+    import argparse
+    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
+    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
+    args = parser.parse_args()
+
+    if os.path.exists(args.config):
+        with open(args.config, 'r') as f:
+            print(f"使用命令行配置文件: {args.config}")
+            config = yaml.safe_load(f)
+    elif os.path.exists('data_sampler_local.yaml'):
         with open('data_sampler_local.yaml', 'r') as f:
             print("使用本地配置文件 data_sampler_local.yaml")
             config = yaml.safe_load(f)

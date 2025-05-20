@@ -174,7 +174,7 @@ def main(args):
     if not is_eval:
         # act修改wandb
         # wandb.init(project="mobile-aloha2", reinit=True, entity="mobile-aloha2", name=expr_name)
-        wandb.init(project="mobile-aloha2", reinit=True, name=expr_name)
+        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
         wandb.config.update(config)
     with open(config_path, 'wb') as f:
         # 保存配置文件
@@ -721,7 +721,16 @@ def repeater(data_loader):
 
 if __name__ == '__main__':
 
-    if os.path.exists('data_sampler_local.yaml'):
+    import argparse
+    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
+    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
+    args = parser.parse_args()
+
+    if os.path.exists(args.config):
+        with open(args.config, 'r') as f:
+            print(f"使用命令行配置文件: {args.config}")
+            config = yaml.safe_load(f)
+    elif os.path.exists('data_sampler_local.yaml'):
         with open('data_sampler_local.yaml', 'r') as f:
             print("使用本地配置文件 data_sampler_local.yaml")
             config = yaml.safe_load(f)

@@ -8,8 +8,8 @@ training
 data_local
 .vscode
 data
+config_local
 data_sampler_local.yaml
-
 
 **/.DS_Store
 

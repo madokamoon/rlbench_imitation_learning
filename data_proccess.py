@@ -317,10 +317,25 @@ def main(config_path='data_sampler.yaml', max_workers=None):
 
 
 if __name__ == '__main__':
+
     import argparse
-    parser = argparse.ArgumentParser(description='数据转换工具')
-    parser.add_argument('--config', default='data_sampler.yaml', help='配置文件路径')
+    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
+    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
     parser.add_argument('--threads', type=int, default=None, help='并行处理的线程数')
     args = parser.parse_args()
+
+    if os.path.exists(args.config):
+        with open(args.config, 'r') as f:
+            print(f"使用命令行配置文件: {args.config}")
+            config = yaml.safe_load(f)
+    elif os.path.exists('data_sampler_local.yaml'):
+        with open('data_sampler_local.yaml', 'r') as f:
+            print("使用本地配置文件 data_sampler_local.yaml")
+            config = yaml.safe_load(f)
+    else:
+        with open('data_sampler.yaml', 'r') as f:
+            print("使用默认配置文件 data_sampler.yaml")
+            config = yaml.safe_load(f)
+
     
     main(config_path=args.config, max_workers=args.threads)

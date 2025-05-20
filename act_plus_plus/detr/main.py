@@ -62,6 +62,8 @@ def get_args_parser():
     parser.add_argument('--seed', action='store', type=int, help='seed', required=False)
     parser.add_argument('--num_steps', action='store', type=int, help='num_epochs', required=False)
 
+    # act修改代码优化 新增参数 --config 因为 data_sampler.py 中需要用到
+    parser.add_argument('--config', type=str, default=None)
 
     parser.add_argument('--kl_weight', action='store', type=int, help='KL Weight', required=False)
     parser.add_argument('--chunk_size', action='store', type=int, help='chunk_size', required=False)

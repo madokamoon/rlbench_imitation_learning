@@ -1,3 +1,7 @@
+
+# 不要修改该文件
+# 程序优先使用本地文件 data_sampler_local.yaml 
+
 # 0 采样 1 重现 2 评估
 mode: 2
 
@@ -37,6 +41,7 @@ act_policy:
   'ckpt_dir_end': '1'
   'ckpt_name': 'policy_best.ckpt'
   'use_weight': false
+  'wandb_project_name': 'pick_and_lift'
   # 同 imitate_episodes.py 的所有 argparse 参数
   'eval': false
   'onscreen_render': false

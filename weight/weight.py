@@ -83,13 +83,14 @@ def calculate_change_weight(img1, img2, bins=256):
         return 1.0  # 如果熵为零（极少见），返回最大变化权重
     
     # 计算变化权重，范围在[0,1]之间
-    change_weight = 1.0 - (mi / min_entropy)
+
+    # 方式一
+    # change_weight = 1.0 - (mi / min_entropy)
+    # 方式二
+    change_weight = 1.0 - (mi / np.sqrt(ent1 * ent2))
     
     # 确保权重在有效范围内
     return max(0.0, min(1.0, change_weight))
-
-
-
 
 
 
