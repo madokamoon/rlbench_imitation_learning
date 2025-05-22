@@ -59,11 +59,29 @@ class FrozenBatchNorm2d(torch.nn.Module):
 
 class BackboneBase(nn.Module):
 
-    def __init__(self, backbone: nn.Module, train_backbone: bool, num_channels: int, return_interm_layers: bool):
+    def __init__(self, backbone: nn.Module, train_backbone: bool, num_channels: int, 
+                 return_interm_layers: bool, finetune_strategy: str = 'all', 
+                 unfreeze_layers: list = None):
         super().__init__()
-        # for name, parameter in backbone.named_parameters(): # only train later layers # TODO do we want this?
-        #     if not train_backbone or 'layer2' not in name and 'layer3' not in name and 'layer4' not in name:
-        #         parameter.requires_grad_(False)
+        
+        # 根据策略冻结参数
+        if not train_backbone:
+            # 完全冻结
+            print('Backbone 完全冻结')
+            for name, parameter in backbone.named_parameters():
+                parameter.requires_grad_(False)
+        elif finetune_strategy == 'partial':
+            # 部分微调
+            print('Backbone 部分微调')
+            for name, parameter in backbone.named_parameters():
+                should_unfreeze = False
+                for layer_name in unfreeze_layers:
+                    if layer_name in name:
+                        should_unfreeze = True
+                        break
+                parameter.requires_grad_(should_unfreeze)
+        # 策略为'all'时不执行冻结，所有参数都可训练
+
         if return_interm_layers:
             return_layers = {"layer1": "0", "layer2": "1", "layer3": "2", "layer4": "3"}
         else:
@@ -83,17 +101,25 @@ class BackboneBase(nn.Module):
         # return out
 
 
+def get_norm_layer(frozen_bn: bool):
+    return FrozenBatchNorm2d if frozen_bn else nn.BatchNorm2d
+
 class Backbone(BackboneBase):
-    """ResNet backbone with frozen BatchNorm."""
-    def __init__(self, name: str,
-                 train_backbone: bool,
-                 return_interm_layers: bool,
-                 dilation: bool):
+    """ResNet backbone with configurable BatchNorm."""
+    def __init__(self, name: str, train_backbone: bool, 
+                 return_interm_layers: bool, dilation: bool,
+                 finetune_strategy: str = 'all', 
+                 unfreeze_layers: list = None,
+                 frozen_bn: bool = True):
+        norm_layer = FrozenBatchNorm2d if frozen_bn else nn.BatchNorm2d
+        print('frozen_bn: ', frozen_bn)
         backbone = getattr(torchvision.models, name)(
             replace_stride_with_dilation=[False, False, dilation],
-            pretrained=is_main_process(), norm_layer=FrozenBatchNorm2d) # pretrained # TODO do we want frozen batch_norm??
+            pretrained=is_main_process(), 
+            norm_layer=norm_layer)
         num_channels = 512 if name in ('resnet18', 'resnet34') else 2048
-        super().__init__(backbone, train_backbone, num_channels, return_interm_layers)
+        super().__init__(backbone, train_backbone, num_channels, 
+                         return_interm_layers, finetune_strategy, unfreeze_layers)
 
 
 class Joiner(nn.Sequential):
