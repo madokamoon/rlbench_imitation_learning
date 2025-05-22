@@ -96,6 +96,9 @@ class EpisodicDataset(torch.utils.data.Dataset):
                         weight_dict[cam_name] = 1.0
                 
                 # get all actions after and including start_ts
+
+                # act修改 强制为 is_sim
+                is_sim = True
                 if is_sim:
                     action = action[start_ts:]
                     action_len = episode_len - start_ts
