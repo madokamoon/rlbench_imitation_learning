@@ -17,7 +17,7 @@ import sys
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
-from rlbench.action_modes.gripper_action_modes import GripperJointPosition
+from rlbench.action_modes.gripper_action_modes import GripperJointPosition,Discrete
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from act_policy_wrapper import ACTPolicyWrapper
@@ -179,13 +179,13 @@ class RLBenchProcessor:
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
-                gripper_action_mode=GripperJointPosition(absolute_mode=True))
+                gripper_action_mode=Discrete())
             print("末端位姿控制模式")
         elif self.mode == 0 :
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
-                gripper_action_mode=GripperJointPosition(absolute_mode=True))
+                gripper_action_mode=Discrete())
             print("关节速度控制模式")
             
         # 创建并配置RLBench环境
@@ -458,8 +458,8 @@ class RLBenchProcessor:
             
             # 获取夹爪开合状态 
             gripper_open = frame_data.get('grasp_state', [0])[0]
-            gripper_joint_position = 0.04 * float(gripper_open > 0.5) 
-
+            # gripper_joint_position = 0.04 * float(gripper_open > 0.5) 
+            gripper_joint_position = 1 * float(gripper_open > 0.5) 
 
             # 执行动作.
             action = np.array(pose + [gripper_joint_position])
@@ -676,7 +676,8 @@ class RLBenchProcessor:
 
                     # 夹爪控制
                     gripper_value = actaction[7]
-                    gripper_joint_position = 0.04 * float(gripper_value > 0.5)
+                    # gripper_joint_position = 0.04 * float(gripper_value > 0.5)
+                    gripper_joint_position = 1 * float(gripper_value > 0.5)
 
                     # 执行动作
                     try:
