@@ -81,7 +81,8 @@ class BackboneBase(nn.Module):
                         break
                 parameter.requires_grad_(should_unfreeze)
         # 策略为'all'时不执行冻结，所有参数都可训练
-
+        print('Backbone 全部训练')
+        
         if return_interm_layers:
             return_layers = {"layer1": "0", "layer2": "1", "layer3": "2", "layer4": "3"}
         else:
@@ -110,9 +111,9 @@ class Backbone(BackboneBase):
                  return_interm_layers: bool, dilation: bool,
                  finetune_strategy: str = 'all', 
                  unfreeze_layers: list = None,
-                 frozen_bn: bool = True):
+                 frozen_bn: bool = False):
         norm_layer = FrozenBatchNorm2d if frozen_bn else nn.BatchNorm2d
-        print('frozen_bn: ', frozen_bn)
+        print('是否冻结：frozen_bn: ', frozen_bn)
         backbone = getattr(torchvision.models, name)(
             replace_stride_with_dilation=[False, False, dilation],
             pretrained=is_main_process(), 
