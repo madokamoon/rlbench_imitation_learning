@@ -104,6 +104,8 @@ def main(args):
     backbone_config = args.get('backbone_config', {})
     lr_backbone = backbone_config.get('lr_backbone', 1e-5)
     backbone = 'resnet18'
+
+
     # lr_backbone = 1e-5
     # backbone = 'resnet18'
     if policy_class == 'ACT':
@@ -129,6 +131,7 @@ def main(args):
                          'action_dim': 10,
                          'no_encoder': args['no_encoder'],
                         # 新增参数
+                        'train_backbone': backbone_config.get('train_backbone', True),
                         'finetune_strategy': backbone_config.get('finetune_strategy', 'all'),
                         'unfreeze_layers': backbone_config.get('unfreeze_layers', ['layer2', 'layer3', 'layer4']),
                         'frozen_bn': backbone_config.get('frozen_bn', False),

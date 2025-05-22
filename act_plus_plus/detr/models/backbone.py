@@ -82,7 +82,7 @@ class BackboneBase(nn.Module):
                 parameter.requires_grad_(should_unfreeze)
         # 策略为'all'时不执行冻结，所有参数都可训练
         print('Backbone 全部训练')
-        
+
         if return_interm_layers:
             return_layers = {"layer1": "0", "layer2": "1", "layer3": "2", "layer4": "3"}
         else:
@@ -143,7 +143,14 @@ def build_backbone(args):
     position_embedding = build_position_encoding(args)
     train_backbone = args.lr_backbone > 0
     return_interm_layers = args.masks
-    backbone = Backbone(args.backbone, train_backbone, return_interm_layers, args.dilation)
+
+    # act 修改
+    train_backbone=args.train_backbone,
+    finetune_strategy=args.finetune_strategy
+    unfreeze_layers=args.unfreeze_layers
+    frozen_bn=args.frozen_bn
+
+    backbone = Backbone(args.backbone, train_backbone, return_interm_layers, args.dilation,finetune_strategy, unfreeze_layers, frozen_bn)
     model = Joiner(backbone, position_embedding)
     model.num_channels = backbone.num_channels
     return model
