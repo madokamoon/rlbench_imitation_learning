@@ -40,7 +40,7 @@ act_policy:
     - overhead_camera
 
   'show_3D_state': true
-  'ckpt_dir_end': '1'
+  'ckpt_dir_end': null  #如果设置为null，则训练和测试都不会加入时间戳 ，否则，训练时自动加入时间戳，测试时需要正确填写
   'ckpt_name': 'policy_best.ckpt'
   'use_weight': false
   'wandb_project_name': 'pick_and_lift'

@@ -593,7 +593,9 @@ class RLBenchProcessor:
         from weight.weight import calculate_change_weight
 
         success_counts = 0  # 成功次数统计
+        error_counts = 0    # 新增：错误次数统计
         successful_steps = []  # 记录每次成功尝试的步骤数
+        all_attempt_steps = []  # 新增：记录所有尝试的步骤数
         attempt = 0
         
         if self.static_positions == True:
@@ -609,11 +611,8 @@ class RLBenchProcessor:
                     np.random.set_state(numpy_state)
                     self.task.reset_to_demo(reference_demo)
                     descriptions, obs = self.task.reset()
-
-
                 else:
                     descriptions, obs = self.task.reset()
-
 
                 self.act_policy.reset()
                 # 用于存储上一帧的图像
@@ -621,10 +620,11 @@ class RLBenchProcessor:
                 
                 # 执行控制循环
                 success_in_this_attempt = False
-
-                # forceslist = []
+                current_steps = 0  # 新增：记录当前尝试的步骤数
+                has_error = False  # 新增：标记当前尝试是否发生错误
 
                 for step in tqdm(range(self.max_steps), desc=f"第 {attempt} 次尝试"):
+                    current_steps = step + 1  # 更新当前步骤数
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
                     formatted_state = [f"{val:8.5f}" for val in robot_state]
@@ -661,7 +661,6 @@ class RLBenchProcessor:
                     else:
                         actaction = self.act_policy.get_actions(imgdata, robot_state)
                         
-
                     # 模型输出转换为末端位姿控制
                     end_effector_pose = actaction[0:7].copy()
 
@@ -676,7 +675,6 @@ class RLBenchProcessor:
 
                     # 夹爪控制
                     gripper_value = actaction[7]
-                    # gripper_joint_position = 0.04 * float(gripper_value > 0.5)
                     gripper_joint_position = 1 * float(gripper_value > 0.5)
 
                     # 执行动作
@@ -685,12 +683,6 @@ class RLBenchProcessor:
                         formatted_action = [f"{val:8.5f}" for val in action]
                         print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
-
-                        # forceslist.append(obs.gripper_touch_forces)
-                        # formatted_forces = [f"{val:8.5f}" for val in obs.gripper_touch_forces]
-                        # print(f"touch_forces:{formatted_forces}")
-
-
 
                         # 检查任务状态
                         if reward == 1.0:
@@ -707,37 +699,37 @@ class RLBenchProcessor:
                     except Exception as e:
                         print(f"\n第 {attempt} 次尝试执行动作时发生错误:")
                         traceback.print_exc()  # 打印完整的堆栈跟踪
+                        error_counts += 1  # 新增：错误次数加1
+                        has_error = True  # 标记当前尝试发生了错误
                         break
                 
-                # forces_array = np.array(forceslist)  
-                # 获取力传感器数量
-                # num_sensors = forces_array.shape[1]
-                # time_steps = forces_array.shape[0]
-                # plt.figure(figsize=(12, 6))
-                # for i in range(num_sensors):
-                #     plt.plot(range(time_steps), forces_array[:, i], label=f'force {i+1}')
-                # plt.grid(True)
-                # plt.legend()
-                # plt.show()
-
+                # 记录当前尝试的步骤数到所有尝试列表
+                all_attempt_steps.append(current_steps)
+                
                 if not success_in_this_attempt and attempt < max_attempts:
                     print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
                     time.sleep(1)
             
             # 计算统计结果
             success_rate = success_counts / attempt if attempt > 0 else 0
-            avg_steps = sum(successful_steps) / len(successful_steps) if successful_steps else 0
+            error_rate = error_counts / attempt if attempt > 0 else 0  # 新增：错误率
+            avg_successful_steps = sum(successful_steps) / len(successful_steps) if successful_steps else 0
+            avg_all_steps = sum(all_attempt_steps) / len(all_attempt_steps) if all_attempt_steps else 0  # 新增：所有尝试的平均步骤数
             
             print(f"\n===== 评估结果统计 =====")
             print(f"- 总尝试次数: {attempt}")
             print(f"- 成功次数: {success_counts}")
             print(f"- 成功率: {success_rate:.2%}")
-            print(f"- 平均成功步骤数: {avg_steps:.2f}")
+            print(f"- 平均成功步骤数: {avg_successful_steps:.2f}")
             if successful_steps:
                 print(f"- 最少步骤数: {min(successful_steps)}")
                 print(f"- 最多步骤数: {max(successful_steps)}")
+            # 新增的评估指标
+            print(f"- 错误次数: {error_counts}")
+            print(f"- 错误率: {error_rate:.2%}")
+            print(f"- 所有尝试的平均步骤数: {avg_all_steps:.2f}")
             
-            return success_rate, avg_steps
+            return success_rate, avg_successful_steps
 
         except Exception as e:
             print(f"任务执行过程中发生错误:")
