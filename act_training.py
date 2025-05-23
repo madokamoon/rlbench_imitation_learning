@@ -48,9 +48,10 @@ def main(args):
     ckpt_dir = args['ckpt_dir']
 
     # act修改 训练保存结果路径加入时间戳
-    now_time = datetime.datetime.now()
-    str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-    ckpt_dir = os.path.join(ckpt_dir, str_time)
+    if  args['ckpt_dir_end'] != None:
+        now_time = datetime.datetime.now()
+        str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+        ckpt_dir = os.path.join(ckpt_dir, str_time)
 
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
