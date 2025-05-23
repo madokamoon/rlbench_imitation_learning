@@ -10,7 +10,7 @@ mode: 0
 data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: 'data'
-  taskname: 'pick_and_lift'
+  taskname: 'pick_and_lift_small_size'
   save_path_end: '100demos'
   num_demos: 100
   image:
@@ -30,7 +30,7 @@ data_sampler_config:
 # ------------------ 训练 评估 ------------------   
 act_policy:
   'task_config':
-    'dataset_dir': 'data/pick_and_lift/100demos_hdf5'
+    'dataset_dir': 'data/pick_and_lift_small_size/100demos_hdf5'
     'episode_len': 250  # 只影响评估
     # 'train_ratio': 0.95
     camera_names:
@@ -42,13 +42,13 @@ act_policy:
   'ckpt_dir_end': null  #如果设置为null，则训练和测试都不会加入时间戳 ，否则，训练时自动加入时间戳，测试时需要正确填写
   'ckpt_name': 'policy_best.ckpt'
   'use_weight': false
-  'wandb_project_name': 'pick_and_lift'
+  'wandb_project_name': 'pick_and_lift_small_size'
   # 同 imitate_episodes.py 的所有 argparse 参数
   'eval': false
   'onscreen_render': false
-  'ckpt_dir': 'training/pick_and_lift/100demos_hdf5_4_10000_fwo'
+  'ckpt_dir': 'training/pick_and_lift_small_size/100demos_hdf5_4_10000_fwo'
   'policy_class': 'ACT'
-  'task_name': 'pick_and_lift'
+  'task_name': 'pick_and_lift_small_size'
   'batch_size': 4
   'seed': 0
   'num_steps': 10000

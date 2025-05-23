@@ -160,10 +160,20 @@ class RLBenchProcessor:
 
     def task_file_to_task_class(self, task_file):
         class_name = ''.join([w[0].upper() + w[1:] for w in task_file.split('_')])
-        mod = importlib.import_module("rlbench.tasks.%s" % task_file)
+
+        try:
+            mod = importlib.import_module("rlbench.tasks.%s" % task_file)
+            print(f"从 rlbench.tasks 成功导入任务: {task_file}")
+        except (ModuleNotFoundError, ImportError):
+            try:
+                mod = importlib.import_module("mytasks.%s" % task_file)
+                print(f"从 mytasks 成功导入自定义任务: {task_file}")
+            except (ModuleNotFoundError, ImportError) as e:
+                raise ImportError(f"无法导入任务 {task_file}，在 rlbench.tasks 和 mytasks 中均未找到") from e
+        
         mod = importlib.reload(mod)
         task_class = getattr(mod, class_name)
-        return task_class,class_name
+        return task_class, class_name
 
     def setup_environment(self):
         """设置并启动RLBench环境"""
@@ -171,9 +181,8 @@ class RLBenchProcessor:
         self.obs_config = self._create_observation_config()
         
         # 打印观测配置信息
-        print("\n ObservationConfig 属性:")
-        pprint(self.obs_config.__dict__)
-        print("\n")
+        # print("\n ObservationConfig 属性:")
+        # pprint(self.obs_config.__dict__)
         
         if self.mode == 1 or self.mode == 2:
             # 反应模式：使用末端位姿控制
@@ -193,6 +202,7 @@ class RLBenchProcessor:
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=self.headless,
+            static_positions = True
         )
             
         # 使用sim模块直接设置物理引擎参数 
@@ -411,7 +421,6 @@ class RLBenchProcessor:
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]
-            
             # 保存这个demo
             self.save_demo_raw(demo, self.variation_path, i)
             
