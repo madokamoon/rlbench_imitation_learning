@@ -252,7 +252,7 @@ class RLBenchProcessor:
         state_data = {}
         
         # 使用tqdm为循环添加进度条
-        for i, obs in tqdm(enumerate(demo), total=len(demo), desc=f"演示 {ex_idx} 处理进度"):
+        for i, obs in tqdm(enumerate(demo), total=len(demo), desc=f"演示 {ex_idx+1} 处理进度"):
             # 获取当前时间戳
             current_timestamp = time.time()
             
@@ -361,7 +361,7 @@ class RLBenchProcessor:
         with open(str(state_json_path), 'w') as json_file:
             json.dump(state_data, json_file, indent=4)
         
-        print(f"演示 {ex_idx} 原始数据保存成功，路径: {episode_folder}")
+        print(f"演示 {ex_idx+1} 原始数据保存成功，路径: {episode_folder}")
 
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
@@ -407,7 +407,7 @@ class RLBenchProcessor:
 
         # 逐个收集和保存demo
         for i in range(self.num_demos):
-            print(f'收集和保存演示 {i}/{self.num_demos}')
+            print(f'收集和保存演示 {i+1}/{self.num_demos}')
             
             if self.static_positions == True:
                 random.setstate(random_state)

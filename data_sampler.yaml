@@ -6,16 +6,17 @@
 mode: 0
 
 
+
 # ------------------ 采样 重现 数据转换 评估 ------------------ 
 data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
-  save_path_head: 'data'
-  taskname: 'pick_and_lift_small_size'
-  save_path_end: '100demos'
-  num_demos: 100
+  save_path_head: &save_path_head      'data'
+  taskname: &taskname                  'pick_and_lift_small_size'
+  save_path_end: &save_path_end        '5_demos'
+  num_demos: 5
   image:
-    width: 640
-    height: 480
+    width:  &image_width   640
+    height: &image_height  480
   cameras:
     - 'front_camera'
     - 'wrist_camera'
@@ -26,6 +27,16 @@ data_sampler_config:
   static_positions: False
   headless: False
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
+
+# ------------------ 数据转换 ------------------ 
+data_proccess_config:
+    save_path_head: *save_path_head
+    save_path_end: *save_path_end    #如果收集时候留空了，这里要正确填写时间戳
+    taskname: *taskname  
+    image_width: *image_width
+    image_height: *image_height
+    end_pad: True               # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据，此时请把下面的 episode_len 设置最该长度
+
 
 # ------------------ 训练 评估 ------------------   
 act_policy:
@@ -39,7 +50,7 @@ act_policy:
     - overhead_camera
 
   'show_3D_state': false
-  'ckpt_dir_end': null  #如果设置为null，则训练和测试都不会加入时间戳 ，否则，训练时自动加入时间戳，测试时需要正确填写
+  'ckpt_dir_end': null   #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
   'ckpt_name': 'policy_best.ckpt'
   'use_weight': false
   'wandb_project_name': 'pick_and_lift_small_size'

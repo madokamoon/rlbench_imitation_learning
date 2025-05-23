@@ -16,7 +16,7 @@ import time, datetime
 from weight.weight import calculate_change_weight
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -25,6 +25,7 @@ class RawToHDF5Converter:
         self.prev_frames = {}  # 存储前一帧的图像
         self.image_width = image_width
         self.image_height = image_height
+        self.end_pad = end_pad  # 添加 end_pad 参数
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -35,10 +36,23 @@ class RawToHDF5Converter:
         print(f"找到以下文件夹: {folders}")
         print(f"共计 {len(folders)} 个文件夹需要处理")
         
+        # 当 end_pad=True 时，预先计算最长序列长度
+        max_sequence_length = 0
+        if self.end_pad:
+            print("正在计算最长序列长度...")
+            for folder_name in tqdm.tqdm(folders):
+                folder_path = os.path.join(self.input_path, folder_name)
+                json_path = os.path.join(folder_path, 'state.json')
+                if os.path.exists(json_path):
+                    with open(json_path, 'r') as f:
+                        json_data = json.load(f)
+                        max_sequence_length = max(max_sequence_length, len(json_data))
+            print(f"最长序列长度 【{max_sequence_length}】")
+        
         # 使用线程池并行处理文件夹
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # 提交所有任务
-            futures = [executor.submit(self.process_folder, folder_name, folder_idx, len(folders)) 
+            futures = [executor.submit(self.process_folder, folder_name, folder_idx, len(folders), max_sequence_length) 
                       for folder_idx, folder_name in enumerate(folders)]
             
             # 使用tqdm显示总体进度
@@ -51,7 +65,7 @@ class RawToHDF5Converter:
                 except Exception as e:
                     print(f"处理文件夹时出错: {e}")
     
-    def process_folder(self, folder_name, folder_idx, total_folders):
+    def process_folder(self, folder_name, folder_idx, total_folders, max_sequence_length=0):
         """处理单个文件夹的方法"""
         try:
             folder_path = os.path.join(self.input_path, folder_name)
@@ -65,8 +79,10 @@ class RawToHDF5Converter:
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
                         pass # 不转换深度图像
+                        # local_camera_names.append(f)
                     elif f.endswith('mask'):
-                        local_camera_names.append(f)
+                        pass # 不转换mask图像
+                        # local_camera_names.append(f)
                     elif f.endswith('camera'):
                         local_camera_names.append(f)
                         
@@ -181,6 +197,31 @@ class RawToHDF5Converter:
                     for cam_name in camera_cams:
                         local_datas[f'/observations/weight/{cam_name}'].append(1.0)
             
+            # 如果启用了 end_pad，并且当前序列长度小于最大序列长度，则进行填充
+            current_length = len(local_datas['/action'])
+            if self.end_pad and current_length < max_sequence_length and current_length > 0:
+                padding_length = max_sequence_length - current_length
+                print(f"文件夹 {folder_name} 需要填充 {padding_length} 帧")
+                
+                # 填充各个数据项
+                for key, data_list in local_datas.items():
+                    if not data_list:  # 跳过空列表
+                        continue
+                    
+                    # 获取最后一帧的数据
+                    last_frame = data_list[-1]
+                    
+                    # 对于图像类型数据 (numpy数组)
+                    if isinstance(last_frame, np.ndarray) and last_frame.ndim > 1:
+                        # 重复最后一帧 padding_length 次
+                        padding = [last_frame.copy() for _ in range(padding_length)]
+                    else:  # 对于其他类型数据 (关节状态、动作等)
+                        # 重复最后一帧 padding_length 次
+                        padding = [last_frame for _ in range(padding_length)]
+                    
+                    # 添加填充到数据列表
+                    local_datas[key].extend(padding)
+            
             # 设置输出文件路径
             record_path = os.path.join(self.output_path, f"episode_{folder_name}.hdf5")
             
@@ -241,29 +282,17 @@ class RawToHDF5Converter:
                     root[name][...] = np.array(array)
 
 
-def main(config_path='data_sampler.yaml', max_workers=None):
-    # 加载配置
-
-    # with open(config_path, 'r') as f:
-    #     config = yaml.safe_load(f)
-
-    if os.path.exists('data_sampler_local.yaml'):
-        with open('data_sampler_local.yaml', 'r') as f:
-            print("使用本地配置文件 data_sampler_local.yaml")
-            config = yaml.safe_load(f)
-    else:
-        with open('data_sampler.yaml', 'r') as f:
-            print("使用默认配置文件 data_sampler.yaml")
-            config = yaml.safe_load(f)
+def main(config, max_workers=None):
 
     # 从配置中获取参数
-    data_sampler_config = config.get('data_sampler_config', {})
-    save_path_head = data_sampler_config['save_path_head']
-    save_path_end = data_sampler_config['save_path_end']
-    taskname = data_sampler_config['taskname']
+    data_proccess_config = config.get('data_proccess_config', {})
 
-    image_width = data_sampler_config['image']['width']
-    image_height = data_sampler_config['image']['height']
+    save_path_head = data_proccess_config['save_path_head']
+    save_path_end = data_proccess_config['save_path_end']
+    taskname = data_proccess_config['taskname']
+    image_width = data_proccess_config['image_width']
+    image_height = data_proccess_config['image_height']
+    end_pad = data_proccess_config['end_pad']
 
     # 保存路径
     task_path = os.path.join(save_path_head, taskname)
@@ -301,7 +330,8 @@ def main(config_path='data_sampler.yaml', max_workers=None):
     print("输出路径：", output_path)
     converter = RawToHDF5Converter(input_path, output_path, 
                                 image_width=image_width, 
-                                image_height=image_height)
+                                image_height=image_height,
+                                end_pad=end_pad) 
     
     # 如果未指定线程数，使用处理器核心数
     if max_workers is None:
@@ -338,4 +368,4 @@ if __name__ == '__main__':
             config = yaml.safe_load(f)
 
     
-    main(config_path=args.config, max_workers=args.threads)
+    main(config, max_workers=args.threads)
