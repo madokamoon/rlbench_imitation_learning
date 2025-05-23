@@ -210,6 +210,11 @@ class RLBenchProcessor:
         print(f"加载任务类: {classname}")
         self.task = self.env.get_task(task_class)
 
+        if self.robot_init_state is not None:
+            self.task._scene._start_arm_joint_pos = self.robot_init_state[0:7]
+            self.task._scene._starting_gripper_joint_pos = self.robot_init_state[7:9]
+
+
     def save_demo_raw(self, demo, example_path, ex_idx):
         """
         保存演示数据为原始的PNG和JSON格式
@@ -403,9 +408,6 @@ class RLBenchProcessor:
             else:
                 pass
                 # descriptions, obs = self.task.reset()
-
-            if self.robot_init_state is not None:
-                    self.task.step(self.robot_init_state)
 
             # 只获取一个demo
             demo = self.task.get_demos(1, live_demos=True)[0]

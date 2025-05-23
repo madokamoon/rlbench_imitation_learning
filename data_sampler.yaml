@@ -3,7 +3,7 @@
 # 程序优先使用本地文件 data_sampler_local.yaml 
 
 # 0 采样 1 重现 2 评估
-mode: 2
+mode: 0
 
 
 # ------------------ 采样 重现 数据转换 评估 ------------------ 
@@ -12,7 +12,7 @@ data_sampler_config:
   save_path_head: 'data'
   taskname: 'pick_and_lift'
   save_path_end: '100demos'
-  num_demos: 2
+  num_demos: 100
   image:
     width: 640
     height: 480
@@ -25,8 +25,7 @@ data_sampler_config:
   # 启用后所有demo的初始物体位置一样
   static_positions: False
   headless: False
-  # robot_init_state: [0.3,-0.0,1.4,-4.5481610868591815e-06,0.9926624298095703,-1.6518575876034447e-06,0.12091880291700363,0.04]
-  robot_init_state: null
+  robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
 
 # ------------------ 训练 评估 ------------------   
 act_policy:
@@ -39,7 +38,7 @@ act_policy:
     - wrist_camera
     - overhead_camera
 
-  'show_3D_state': true
+  'show_3D_state': false
   'ckpt_dir_end': null  #如果设置为null，则训练和测试都不会加入时间戳 ，否则，训练时自动加入时间戳，测试时需要正确填写
   'ckpt_name': 'policy_best.ckpt'
   'use_weight': false
@@ -66,7 +65,7 @@ act_policy:
   'prediction_len': null
   # for ACT
   'kl_weight': 10
-  'chunk_size': 100
+  'chunk_size': 50
   'hidden_dim': 512
   'dim_feedforward': 3200
   'temporal_agg': false
