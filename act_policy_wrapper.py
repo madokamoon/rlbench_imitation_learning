@@ -7,6 +7,10 @@ import torch
 import pickle
 from einops import rearrange
 import copy
+import datetime
+import hydra
+from omegaconf import OmegaConf
+import omegaconf
 # ACT模块
 from act_plus_plus.utils import set_seed
 from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
@@ -18,111 +22,60 @@ class ACTPolicyWrapper:
     def __init__(self, args):
 
         set_seed(1)
-
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用设备: {self.device}")
 
         is_eval = args['eval']
-        
         ckpt_dir = args['ckpt_dir']
-        str_time = args['ckpt_dir_end']
-        if str_time is not None:
-            ckpt_dir = os.path.join(ckpt_dir, str_time)
-
         policy_class = args['policy_class']
         onscreen_render = args['onscreen_render']
         task_name = args['task_name']
         batch_size_train = args['batch_size']
         batch_size_val = args['batch_size']
         num_steps = args['num_steps']
-        eval_every = args['eval_every']
+        eval_every = args['eval_every']  # 训练时候 多少step评估一次
         validate_every = args['validate_every']
         save_every = args['save_every']
         resume_ckpt_path = args['resume_ckpt_path']
+        use_wandb = args['use_wandb']
+        dataset_dir = args['dataset_dir']
+        episode_len = args['episode_len']
+        camera_names = args['camera_names']
+        dataloader_name = args['dataloader_name']
+        stats_dir = args.get('stats_dir', None)
+        sample_weights = args.get('sample_weights', None)
+        train_ratio = args.get('train_ratio', 0.99)
+        name_filter = args.get('name_filter', lambda n: True)
+        is_sim = task_name[:4] == 'sim_'
+        # act修改维度
+        state_dim = args['state_dim']
+        lr_backbone = args['lr_backbone']
+        backbone = args['backbone']
 
-        task_config = args.get('task_config')
-        dataset_dir = task_config['dataset_dir']
-        episode_len = task_config['episode_len']
-        camera_names = task_config['camera_names']
-        stats_dir = task_config.get('stats_dir', None)
-        sample_weights = task_config.get('sample_weights', None)
-        train_ratio = task_config.get('train_ratio', 0.99)
-        name_filter = task_config.get('name_filter', lambda n: True)
+        # act修改 训练保存结果路径加入时间戳
+        if args['ckpt_dir_end'] != None:
+            now_time = datetime.datetime.now()
+            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+            ckpt_dir = os.path.join(ckpt_dir, str_time)
 
-        # 修改维度
-        state_dim = 8
-        lr_backbone = 1e-5
-        backbone = 'resnet18'
-        if policy_class == 'ACT':
-            enc_layers = 4
-            dec_layers = 7
-            nheads = 8
-            policy_config = {'lr': args['lr'],
-                            'num_queries': args['chunk_size'],
-                            'kl_weight': args['kl_weight'],
-                            'hidden_dim': args['hidden_dim'],
-                            'dim_feedforward': args['dim_feedforward'],
-                            'lr_backbone': lr_backbone,
-                            'backbone': backbone,
-                            'enc_layers': enc_layers,
-                            'dec_layers': dec_layers,
-                            'nheads': nheads,
-                            'camera_names': camera_names,
-                            'vq': args['use_vq'],
-                            'vq_class': args['vq_class'],
-                            'vq_dim': args['vq_dim'],
-                             # 修改维度
-                            'action_dim': 10,
-                            'no_encoder': args['no_encoder'],
-
-                            # 比原版多的参数，用于 build_ACT_model_and_optimizer ，以不使用命令行参数
-                            'task_name': args['task_name'],
-                            'seed': args['seed'],
-                            'num_steps': args["num_steps"],
-                            'policy_class': args['policy_class'],
-                            'ckpt_dir': args['ckpt_dir']
-                            }
-        else:
-            raise NotImplementedError
-
-
+        policy_config = args
         actuator_config = {
             'actuator_network_dir': args['actuator_network_dir'],
             'history_len': args['history_len'],
             'future_len': args['future_len'],
             'prediction_len': args['prediction_len'],
         }
-
         evalconfig = {
-            'num_steps': num_steps,
-            'eval_every': eval_every,
-            'validate_every': validate_every,
-            'save_every': save_every,
-            'ckpt_dir': ckpt_dir,
-            'resume_ckpt_path': resume_ckpt_path,
-            'episode_len': episode_len,
-            'state_dim': state_dim,
-            'lr': args['lr'],
-            'policy_class': policy_class,
-            'onscreen_render': onscreen_render,
             'policy_config': policy_config,
-            'task_name': task_name,
-            'seed': args['seed'],
-            'temporal_agg': args['temporal_agg'],
-            'camera_names': camera_names,
-            'real_robot': False,
-            'load_pretrain': args['load_pretrain'],
             'actuator_config': actuator_config,
-
         }
 
         if not os.path.isdir(ckpt_dir):
             os.makedirs(ckpt_dir)
         config_path = os.path.join(ckpt_dir, 'config.pkl')
         expr_name = ckpt_dir.split('/')[-1]
-        
-        with open(config_path, 'wb') as f:
-            pickle.dump(evalconfig, f)
+
+        OmegaConf.save(config=evalconfig, f=config_path, resolve=True)
 
         # ----------------------------eval_bc 函数--------------------------------------------
         # ----------------------------eval_bc 函数--------------------------------------------
@@ -132,27 +85,30 @@ class ACTPolicyWrapper:
         num_rollouts=10
 
         set_seed(1000)
-        
-        ckpt_dir = evalconfig['ckpt_dir']
-        state_dim = evalconfig['state_dim']
-        real_robot = evalconfig['real_robot']
-        policy_class = evalconfig['policy_class']
-        onscreen_render = evalconfig['onscreen_render']
-        policy_config = evalconfig['policy_config']
-        camera_names = evalconfig['camera_names']
-        max_timesteps = evalconfig['episode_len']
-        task_name = evalconfig['task_name']
-        temporal_agg = evalconfig['temporal_agg']
+
+        ckpt_dir = policy_config['ckpt_dir']
+        state_dim = policy_config['state_dim']
+        real_robot = policy_config['real_robot']
+        policy_class = policy_config['policy_class']
+        onscreen_render = policy_config['onscreen_render']
+        camera_names = policy_config['camera_names']
+        max_timesteps = policy_config['episode_len']
+        task_name = policy_config['task_name']
+        temporal_agg = policy_config['temporal_agg']
         onscreen_cam = 'angle'
         vq = evalconfig['policy_config']['vq']
-        actuator_config = evalconfig['actuator_config']
         use_actuator_net = actuator_config['actuator_network_dir'] is not None
 
         # load policy and stats
         ckpt_path = os.path.join(ckpt_dir, ckpt_name)
-        policy = self.make_policy(policy_class, policy_config)
-        loading_status = policy.deserialize(torch.load(ckpt_path, map_location=self.device))
-        print(loading_status)
+        # 创建策略模型
+        make_policy_config = omegaconf.DictConfig({
+            "_target_": "act_plus_plus.detr.policy." + policy_class + ".make_policy",
+            'policy_config': policy_config
+        })
+        policy = hydra.utils.call(make_policy_config)
+        # loading_status = policy.deserialize(torch.load(ckpt_path, map_location=self.device))
+        # print(loading_status)
         policy.cuda()
         policy.eval()
         if vq:
@@ -204,19 +160,6 @@ class ACTPolicyWrapper:
 
 
         print("ACT模型加载完成")
-    
-
-    def make_policy(self,policy_class, policy_config):
-        if policy_class == 'ACT':
-            policy = ACTPolicy(policy_config)
-        elif policy_class == 'CNNMLP':
-            policy = CNNMLPPolicy(policy_config)
-        elif policy_class == 'Diffusion':
-            policy = DiffusionPolicy(policy_config)
-        else:
-            raise NotImplementedError
-        return policy
-
 
     def preprocess_images(self, imgdata):
         """预处理图像数据为模型输入格式"""

@@ -3,31 +3,15 @@ import torch
 import numpy as np
 import os
 import pickle
-import argparse
-import matplotlib.pyplot as plt
 from copy import deepcopy
 from itertools import repeat
 from tqdm import tqdm
-from einops import rearrange
 import wandb
-import time
-from torchvision import transforms
 import datetime
-import yaml,pathlib
+import pathlib
 import hydra
 from omegaconf import OmegaConf
-
-from act_plus_plus.constants import FPS
-from act_plus_plus.constants import PUPPET_GRIPPER_JOINT_OPEN
-from act_plus_plus.utils import load_data # data functions
-from act_plus_plus.utils import sample_box_pose, sample_insertion_pose # robot functions
 from act_plus_plus.utils import compute_dict_mean, set_seed, detach_dict, calibrate_linear_vel, postprocess_base_action # helper functions
-from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
-from act_plus_plus.visualize_episodes import save_videos
-from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
-from act_plus_plus.sim_env import BOX_POSE
-
-
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
@@ -84,9 +68,7 @@ def main(cfg: OmegaConf):
         os.makedirs(ckpt_dir)
         print(f"创建目录: {ckpt_dir}")
     config_save_path = os.path.join(ckpt_dir, "training_config.yaml")
-    with open(config_save_path, 'w') as f:
-        # yaml.dump(cfg.to_yaml(), f, default_flow_style=False)
-        OmegaConf.save(config=cfg, f=config_save_path, resolve=True)
+    OmegaConf.save(config=cfg, f=config_save_path, resolve=True)
     print(f"本次运行配置已保存到: {config_save_path}")
 
     policy_config = args

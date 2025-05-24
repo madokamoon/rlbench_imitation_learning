@@ -11,9 +11,13 @@ import h5py
 from PIL import Image
 import glob
 import time, datetime
+import hydra
+from omegaconf import OmegaConf
 
 # 导入权重计算函数
 from weight.weight import calculate_change_weight
+
+OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RawToHDF5Converter:
     def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False):
@@ -281,31 +285,34 @@ class RawToHDF5Converter:
                 if array:  # 只处理非空数据
                     root[name][...] = np.array(array)
 
-
-def main(config, max_workers=None):
-
-    # 从配置中获取参数
-    data_proccess_config = config.get('data_proccess_config', {})
-
+@hydra.main(
+    version_base=None,
+    config_path=str(pathlib.Path(__file__).parent.joinpath(
+        'act_plus_plus', 'detr', 'config'))
+)
+def main(cfg: OmegaConf):
+    OmegaConf.resolve(cfg)
+    data_proccess_config = cfg["data_proccess_config"]
     save_path_head = data_proccess_config['save_path_head']
     save_path_end = data_proccess_config['save_path_end']
     taskname = data_proccess_config['taskname']
     image_width = data_proccess_config['image_width']
     image_height = data_proccess_config['image_height']
     end_pad = data_proccess_config['end_pad']
+    max_workers = data_proccess_config['threads']
 
     # 保存路径
     task_path = os.path.join(save_path_head, taskname)
     if save_path_end == "":
         now_time = datetime.datetime.now()
         str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-        variation_path = os.path.join(task_path, str_time) 
+        variation_path = os.path.join(task_path, str_time)
         save_path_end = str_time
     else:
         variation_path = os.path.join(task_path, save_path_end)
 
     rootpath = pathlib.Path(__file__).parent
-    input_path = rootpath.joinpath(variation_path) 
+    input_path = rootpath.joinpath(variation_path)
     output_path = input_path.parent.joinpath(input_path.name + "_hdf5")
 
     # 检查输入路径是否存在
@@ -322,50 +329,28 @@ def main(config, max_workers=None):
         else:
             print("操作已取消")
             return
-    
+
     output_path.mkdir(parents=True, exist_ok=True)
     print("----------开始转换---------")
     print("根目录：", rootpath)
     print("输入路径：", input_path)
     print("输出路径：", output_path)
-    converter = RawToHDF5Converter(input_path, output_path, 
-                                image_width=image_width, 
-                                image_height=image_height,
-                                end_pad=end_pad) 
-    
+    converter = RawToHDF5Converter(input_path, output_path,
+                                   image_width=image_width,
+                                   image_height=image_height,
+                                   end_pad=end_pad)
+
     # 如果未指定线程数，使用处理器核心数
     if max_workers is None:
         import multiprocessing
         max_workers = multiprocessing.cpu_count()
-    
-    print(f"使用 {max_workers} 个线程进行并行处理")    
+
+    print(f"使用 {max_workers} 个线程进行并行处理")
     start_time = time.time()
     converter.convert(max_workers=max_workers)
     end_time = time.time()
     print("----------转换完成----------")
     print(f"总共耗时: {end_time - start_time:.2f} 秒")
 
-
-if __name__ == '__main__':
-
-    import argparse
-    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
-    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
-    parser.add_argument('--threads', type=int, default=None, help='并行处理的线程数')
-    args = parser.parse_args()
-
-    if args.config is not None and os.path.exists(args.config):
-        with open(args.config, 'r') as f:
-            print(f"使用命令行配置文件: {args.config}")
-            config = yaml.safe_load(f)
-    elif os.path.exists('data_sampler_local.yaml'):
-        with open('data_sampler_local.yaml', 'r') as f:
-            print("使用本地配置文件 data_sampler_local.yaml")
-            config = yaml.safe_load(f)
-    else:
-        with open('data_sampler.yaml', 'r') as f:
-            print("使用默认配置文件 data_sampler.yaml")
-            config = yaml.safe_load(f)
-
-    
-    main(config, max_workers=args.threads)
+if __name__ == "__main__":
+    main()

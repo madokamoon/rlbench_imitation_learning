@@ -22,17 +22,23 @@ from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from act_policy_wrapper import ACTPolicyWrapper
 from pyrep.backend import sim
+import hydra
+from omegaconf import OmegaConf
+
+OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RLBenchProcessor:
     """用于RLBench环境的数据采样与轨迹执行的综合处理器"""
     
     def __init__(self, config):
-
-        self.mode = config.get('mode', 0)
-        print(f"当前模式: {self.mode} (0=采样, 1=轨迹复现, 2=评估)")
+        for mode in config['mode']:
+            if mode[0] == "*":
+                self.mode = mode[1:]
+        assert self.mode is not None
+        print(f"当前模式: {self.mode}.")
 
         # 从配置中获取参数
-        data_sampler_config = config.get('data_sampler_config', {})
+        data_sampler_config = config['data_sampler_config']
         self.data_sampler_config = data_sampler_config
         self.save_path_head = data_sampler_config['save_path_head']
         self.save_path_end = data_sampler_config['save_path_end']
@@ -55,11 +61,10 @@ class RLBenchProcessor:
         else:
             self.variation_path = os.path.join(task_path, self.save_path_end)
    
-        if self.mode == 2:
-            act_policy_config = config.get('act_policy')
-            self.camera_names_forward = act_policy_config['task_config']['camera_names']
-            self.use_weight = act_policy_config['use_weight']
-            self.max_steps =  act_policy_config['task_config']['episode_len']
+        if self.mode == "act_eval":
+            act_policy_config = config['policy']
+            self.camera_names_forward = act_policy_config['camera_names']
+            self.max_steps =  act_policy_config['episode_len']
             self.act_policy = ACTPolicyWrapper(act_policy_config)
 
 
@@ -184,13 +189,13 @@ class RLBenchProcessor:
         # print("\n ObservationConfig 属性:")
         # pprint(self.obs_config.__dict__)
         
-        if self.mode == 1 or self.mode == 2:
+        if self.mode == "process_all_epochs" or self.mode == "act_eval":
             # 反应模式：使用末端位姿控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=EndEffectorPoseViaPlanning(),
                 gripper_action_mode=Discrete())
             print("末端位姿控制模式")
-        elif self.mode == 0 :
+        elif self.mode == "collect_and_save_demos" :
             # 采样模式：使用关节速度控制
             action_mode = MoveArmThenGripper(
                 arm_action_mode=JointVelocity(),
@@ -369,9 +374,7 @@ class RLBenchProcessor:
         self._check_and_make(self.variation_path)
 
         config_save_path = os.path.join(self.variation_path, "data_sampler_config.yaml")
-        with open(config_save_path, 'w') as f:
-            yaml.dump(self.data_sampler_config, f, default_flow_style=False)
-    
+        OmegaConf.save(config=self.data_sampler_config, f=config_save_path, resolve=True)
         print(f"本次运行配置已保存到: {config_save_path}")
 
         if self.static_positions == True:
@@ -808,53 +811,23 @@ class RLBenchProcessor:
         try:
             self.setup_environment()
             self.load_task()
-            
-            if self.mode == 0:
-                print("以数据采样模式运行...")
-                self.collect_and_save_demos()
-            elif self.mode == 1:
-                print("以轨迹复现模式运行...")
-                self.process_all_epochs()
-            elif self.mode == 2:
-                print("以评估模式运行...")
-                self.act_eval()
-                
+            print(f"以 {self.mode} 模式运行...")
+            getattr(self, self.mode)()
         finally:
             if self.env is not None:
                 self.env.shutdown()
                 print("环境已关闭")
 
 
-
-
-if __name__ == "__main__":
-
-    # 使用当前时间作为种子
-    # seed = int(time.time()) 
-    # np.random.seed(seed)
-    # random.seed(seed)
-    # print(f"使用随机种子: {seed}")'
-
-
-    import argparse
-    parser = argparse.ArgumentParser(description='RLBench数据采样与轨迹执行工具')
-    parser.add_argument('--config', type=str, default=None, help='指定配置文件路径')
-    args = parser.parse_args()
-
-    if args.config is not None and os.path.exists(args.config):
-        with open(args.config, 'r') as f:
-            print(f"使用命令行配置文件: {args.config}")
-            config = yaml.safe_load(f)
-    elif os.path.exists('data_sampler_local.yaml'):
-        with open('data_sampler_local.yaml', 'r') as f:
-            print("使用本地配置文件 data_sampler_local.yaml")
-            config = yaml.safe_load(f)
-    else:
-        with open('data_sampler.yaml', 'r') as f:
-            print("使用默认配置文件 data_sampler.yaml")
-            config = yaml.safe_load(f)
-
-    processor = RLBenchProcessor(config)
+@hydra.main(
+    version_base=None,
+    config_path=str(pathlib.Path(__file__).parent.joinpath(
+        'act_plus_plus', 'detr', 'config'))
+)
+def main(cfg: OmegaConf):
+    OmegaConf.resolve(cfg)
+    processor = RLBenchProcessor(cfg)
     processor.run()
 
-
+if __name__ == "__main__":
+    main()
