@@ -86,7 +86,7 @@ def get_args_parser():
     parser.add_argument('--prediction_len', action='store', type=int)
     
     # SAM相关参数
-    parser.add_argument('--use_sam', action='store_true', default=True, 
+    parser.add_argument('--use_sam', action='store_true', default=False, 
                         help='使用SAM视觉编码器')
     parser.add_argument('--sam_checkpoint', type=str, 
                         default='/home/madoka/python/sam_vit_h_4b8939.pth',
