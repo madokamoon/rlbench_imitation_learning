@@ -6,22 +6,8 @@ import numpy as np
 import os,sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from detr.main import build_ACT_model_and_optimizer, build_CNNMLP_model_and_optimizer
-# from act_plus.act_plus_plus.detr.main import build_ACT_model_and_optimizer, build_CNNMLP_model_and_optimizer
 import IPython
 e = IPython.embed
-
-from collections import OrderedDict
-
-# act修改导入删除 暂不使用DP
-
-# from robomimic.models.base_nets import ResNet18Conv, SpatialSoftmax
-# from robomimic.algo.diffusion_policy import replace_bn_with_gn, ConditionalUnet1D
-
-
-# from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-# from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-# from diffusers.training_utils import EMAModel
-
 
 class DiffusionPolicy(nn.Module):
     def __init__(self, args_override):

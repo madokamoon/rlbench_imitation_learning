@@ -1,6 +1,6 @@
 """
 Example usage:
-$ python3 script/compress_data.py --dataset_dir /scr/lucyshi/dataset/aloha_test
+$ python3 script/compress_data.py --dataset_dir /scr/lucyshi/dataloaders/aloha_test
 """
 import os
 import h5py
@@ -21,9 +21,9 @@ def compress_dataset(input_dataset_path, output_dataset_path):
         print(f"The file {output_dataset_path} already exists. Exiting...")
         return
 
-    # Load the uncompressed dataset
+    # Load the uncompressed dataloaders
     with h5py.File(input_dataset_path, 'r') as infile:
-        # Create the compressed dataset
+        # Create the compressed dataloaders
         with h5py.File(output_dataset_path, 'w') as outfile:
 
             outfile.attrs['sim'] = infile.attrs['sim']
@@ -71,7 +71,7 @@ def compress_dataset(input_dataset_path, output_dataset_path):
                     # Find the maximum length of the compressed images
                     max_len = max(len(img) for img in compressed_images)
 
-                    # Create dataset to store compressed images
+                    # Create dataloaders to store compressed images
                     compressed_dataset = out_image_group.create_dataset(cam_name, (len(compressed_images), max_len), dtype='uint8')
 
                     # Store compressed images
@@ -83,7 +83,7 @@ def compress_dataset(input_dataset_path, output_dataset_path):
             _ = outfile.create_dataset('compress_len', compressed_lens.shape)
             outfile['/compress_len'][...] = compressed_lens
 
-    print(f"Compressed dataset saved to {output_dataset_path}")
+    print(f"Compressed dataloaders saved to {output_dataset_path}")
 
 
 def save_videos(video, dt, video_path=None):

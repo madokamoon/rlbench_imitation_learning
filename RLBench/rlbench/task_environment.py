@@ -120,12 +120,12 @@ class TaskEnvironment(object):
         if not live_demos and (self._dataset_root is None
                                or len(self._dataset_root) == 0):
             raise RuntimeError(
-                "Can't ask for a stored demo when no dataset root provided.")
+                "Can't ask for a stored demo when no dataloaders root provided.")
 
         if not live_demos:
             if self._dataset_root is None or len(self._dataset_root) == 0:
                 raise RuntimeError(
-                    "Can't ask for stored demo when no dataset root provided.")
+                    "Can't ask for stored demo when no dataloaders root provided.")
             demos = utils.get_stored_demos(
                 amount, image_paths, self._dataset_root, self._variation_number,
                 self._task.get_name(), self._obs_config,

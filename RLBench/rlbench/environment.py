@@ -164,7 +164,7 @@ class Environment(object):
                   from_episode_number: int = 0) -> List[Demo]:
         if self._dataset_root is None or len(self._dataset_root) == 0:
             raise RuntimeError(
-                "Can't ask for a stored demo when no dataset root provided.")
+                "Can't ask for a stored demo when no dataloaders root provided.")
         demos = utils.get_stored_demos(
             amount, image_paths, self._dataset_root, variation_number,
             task_name, self._obs_config, random_selection, from_episode_number)

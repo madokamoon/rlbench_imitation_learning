@@ -109,7 +109,7 @@ def main(args):
 
     train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, name_filter, camera_names, batch_size_train, batch_size_val)
 
-    # save dataset stats
+    # save dataloaders stats
     # if not os.path.isdir(ckpt_dir):
     #     os.makedirs(ckpt_dir)
     # stats_path = os.path.join(ckpt_dir, f'dataset_stats.pkl')

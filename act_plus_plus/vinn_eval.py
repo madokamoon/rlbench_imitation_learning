@@ -286,7 +286,7 @@ def main(args):
         if save_episode:
             save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
             # visualize_joints(qpos_list, target_qpos_list, plot_path=os.path.join(ckpt_dir, f'qpos{rollout_id}.png'))
-            # visualize_joints(qpos_list, example_qpos, plot_path=os.path.join(ckpt_dir, f'qpos_reference{rollout_id}.png'), label_overwrite=("policy", "dataset"))
+            # visualize_joints(qpos_list, example_qpos, plot_path=os.path.join(ckpt_dir, f'qpos_reference{rollout_id}.png'), label_overwrite=("policy", "dataloaders"))
 
     success_rate = np.mean(np.array(max_rewards) == env_max_reward)
     avg_return = np.mean(episode_returns)

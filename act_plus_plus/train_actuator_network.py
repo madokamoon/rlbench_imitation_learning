@@ -66,18 +66,18 @@ def main():
     # if load_pretrain:
     #     with open(os.path.join('/home/zfu/interbotix_ws/src/act/ckpts/pretrain_all', 'dataset_stats.pkl'), 'rb') as f:
     #         norm_stats = pickle.load(f)
-    #     print('Loaded pretrain dataset stats')
+    #     print('Loaded pretrain dataloaders stats')
     norm_stats, all_episode_len = get_norm_stats(dataset_path_list)
     train_episode_len = [all_episode_len[i] for i in train_episode_ids]
     val_episode_len = [all_episode_len[i] for i in val_episode_ids]
     assert(all_episode_len[0] % prediction_len == 0)
 
-    # save dataset stats
+    # save dataloaders stats
     stats_path = os.path.join(ckpt_dir, f'actuator_net_stats.pkl')
     with open(stats_path, 'wb') as f:
         pickle.dump(norm_stats, f)
 
-    # construct dataset and dataloader
+    # construct dataloaders and dataloader
     train_dataset = EpisodicDataset(dataset_path_list, norm_stats, train_episode_ids, train_episode_len, history_len, future_len, prediction_len)
     val_dataset = EpisodicDataset(dataset_path_list, norm_stats, val_episode_ids, val_episode_len, history_len, future_len, prediction_len)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, pin_memory=True, num_workers=1, prefetch_factor=1)

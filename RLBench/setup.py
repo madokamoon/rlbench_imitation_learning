@@ -49,7 +49,7 @@ setup(name='rlbench',
                     'rlbench': ['task_design.ttt']},
       entry_points={
           "console_scripts": [
-              "rlbench-generate-dataset = rlbench.dataset_generator:main"
+              "rlbench-generate-dataloaders = rlbench.dataset_generator:main"
           ]
       }
 )
