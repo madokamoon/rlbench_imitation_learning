@@ -16,7 +16,7 @@ import time, datetime
 from weight.weight import calculate_change_weight
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, weightflag=False):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -26,6 +26,7 @@ class RawToHDF5Converter:
         self.image_width = image_width
         self.image_height = image_height
         self.end_pad = end_pad  # 添加 end_pad 参数
+        self.weightflag = weightflag  # 添加 weightflag 参数
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -159,11 +160,15 @@ class RawToHDF5Converter:
                     local_datas[f'/observations/images/{cam_name}'].append(img_array)
                     
                     # 计算权重（与前一帧比较）
-                    if frame_idx > 0 and cam_name in local_prev_frames:
-                        # 计算当前帧与前一帧的变化权重
-                        weight = calculate_change_weight(local_prev_frames[cam_name], img_array)
+                    if self.weightflag:
+                        if frame_idx > 0 and cam_name in local_prev_frames:
+                            # 计算当前帧与前一帧的变化权重
+                            weight = calculate_change_weight(local_prev_frames[cam_name], img_array)
+                        else:
+                            # 第一帧或无前一帧数据时，设置默认权重1.0
+                            weight = 1.0
                     else:
-                        # 第一帧或无前一帧数据时，设置默认权重1.0
+                        # 如果weightflag为False，直接设置权重为1.0
                         weight = 1.0
                     
                     # 暂存权重
