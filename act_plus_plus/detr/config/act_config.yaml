@@ -1,5 +1,5 @@
 policy_class: act_policy
-task_name: pick_and_lift
+task_name: pick_and_lift_small_size
 
 
 # ------------------ 训练 评估 ------------------
@@ -25,7 +25,7 @@ policy:
   temporal_agg: false
   # -------Training-------
   ## ** 基础设置 **
-  dataset_dir: data/${task_name}/20demos_static_hdf5
+  dataset_dir: data/${task_name}/100demos_hdf5
   use_wandb: false
   wandb_project_name: ${task_name}
   batch_size: 4

@@ -90,7 +90,7 @@ def kl_divergence(mu, logvar):
 def build_ACT_model_and_optimizer(args):
 
     build_model_config = omegaconf.DictConfig({
-        "_target_": "detr.models." + args.model_name + ".build",
+        "_target_": "act_plus_plus.detr.models." + args.model_name + ".build",
         'args': args
     })
 

@@ -19,9 +19,22 @@ import IPython
 e = IPython.embed
 
 class SAMEncoder(nn.Module):
-    def __init__(self, sam_checkpoint, model_type="vit_h", sam_feature_dim = 256, device="cuda"):
+    def __init__(self, args):
         super().__init__()
         # 只加载图像编码器部分
+        sam_checkpoint = args["sam_checkpoint"]
+        model_type = args["model_type"]
+        sam_feature_dim = args["sam_feature_dim"]
+        sam_2d_dim = args["sam_2d_dim"]
+        output_2d_dim_1 = args["output_2d_dim"]["dim_1"]
+        output_2d_dim_0 = args["output_2d_dim"]["dim_0"]
+        self.sam_2d_dim = sam_2d_dim
+        self.output_2d_dim_1 = output_2d_dim_1
+        self.output_2d_dim_0 = output_2d_dim_0
+        # 将数据维度缩小，防止爆显存
+        self.output_proj = nn.Linear(sam_2d_dim * sam_2d_dim, output_2d_dim_1 * output_2d_dim_0)
+        # unconfig
+        device = "cuda"
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         self.image_encoder = sam.image_encoder
         
@@ -33,7 +46,7 @@ class SAMEncoder(nn.Module):
         self.num_channels = sam_feature_dim
         self.image_encoder.to(device)
     
-    def forward(self, image):
+    def forward(self, image: torch.Tensor):
         """
             输入图像预处理并使用SAM图像编码器生成嵌入表示。
 
@@ -46,41 +59,16 @@ class SAMEncoder(nn.Module):
             """
         # 检查当前设备
         device = image.device
-
-        # 将图像缩放到 1024x1024（保持宽高比）
-        resized_image = F.interpolate(image, size=(1024, 1024), mode='bilinear', align_corners=False)
-
         with torch.no_grad():  # 确保不计算梯度
+            resized_image = F.interpolate(image, size=(1024, 1024), mode='bilinear', align_corners=False)
             image_embedding = self.image_encoder(resized_image)
-
+        image_embedding = image_embedding.reshape([-1, self.sam_2d_dim * self.sam_2d_dim])
+        # 4*256 64*64 -> 4*256 15*20
+        image_embedding = self.output_proj(image_embedding)
+        # 4*256 15*20 -> 4 256 15 20
+        image_embedding = image_embedding.reshape([-1, self.num_channels, self.output_2d_dim_1, self.output_2d_dim_0])
         return image_embedding
 
-class Joiner(nn.Sequential):
-    def __init__(self, backbone, position_embedding):
-        super().__init__(backbone, position_embedding)
-
-
-
-    def forward(self, tensor_list: NestedTensor):
-        xs = self[0](tensor_list)
-        out: List[NestedTensor] = []
-        pos = []
-        # for name, x in xs.items():
-        out.append(xs)
-        # position encoding
-        pos.append(self[1](xs).to(xs.dtype))
-
-        return out, pos
-
 def build_sam_encoder(args):
-    model = SAMEncoder(sam_checkpoint=args.sam.sam_checkpoint,
-                       model_type=args.sam.model_type,
-                       sam_feature_dim=args.sam.sam_feature_dim)
+    model = SAMEncoder(args["sam"])
     return model
-
-
-def build_sam_backbone(args):
-    position_embedding = build_position_encoding(args)
-    # model = Joiner(sam, position_embedding)
-    # model.num_channels = sam.num_channels
-    return position_embedding

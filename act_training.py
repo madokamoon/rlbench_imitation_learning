@@ -97,7 +97,7 @@ def main(cfg: OmegaConf):
 
 
     load_data_config = omegaconf.DictConfig({
-        "_target_": "detr.dataloaders." + dataloader_name + ".load_data",
+        "_target_": "act_plus_plus.detr.dataloaders." + dataloader_name + ".load_data",
         'dataset_dir_l': dataset_dir,
         'camera_names': camera_names,
         'batch_size_train': batch_size_train,
@@ -147,7 +147,7 @@ def train_bc(train_dataloader, val_dataloader, config):
 
     # 创建策略模型
     make_policy_config = omegaconf.DictConfig({
-        "_target_": "detr.policy." + policy_class + ".make_policy",
+        "_target_": "act_plus_plus.detr.policy." + policy_class + ".make_policy",
         'policy_config': policy_config
     })
     policy = hydra.utils.call(make_policy_config)

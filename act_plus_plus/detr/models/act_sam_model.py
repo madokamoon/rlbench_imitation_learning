@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 import torch.nn.functional as F
-from foundation_models.sam_encoder import build_sam_backbone, build_sam_encoder
+from foundation_models.sam_encoder import build_sam_encoder
 from .transformer import build_transformer, TransformerEncoder, TransformerEncoderLayer
 from .position_encoding import build_position_encoding
 
@@ -45,7 +45,6 @@ class DETRVAE(nn.Module):
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
 
         self.input_proj = nn.Conv2d(sam_encoder.num_channels, hidden_dim, kernel_size=1)
-        # self.backbones = nn.ModuleList(backbones)
         self.input_proj_robot_state = nn.Linear(state_dim, hidden_dim)
 
         # encoder extra parameters
@@ -143,27 +142,8 @@ class DETRVAE(nn.Module):
                 # 原始骨干网络特征提取
                 features = self.sam_encoder(image[:, cam_id])
                 pos = self.pos_embeds[cam_id](features)
-
-                # features, pos = self.backbones[cam_id](image[:, cam_id])
-                # features = features[0]  # 取最后一层特征
-                # pos = pos[0]
                 
                 cam_features = self.input_proj(features)
-
-                # # 如果启用SAM，提取SAM特征并进行融合
-                # if self.use_sam:
-                #     with torch.no_grad():
-                #         sam_features = self.sam_encoders[cam_id](image[:, cam_id])
-                #
-                #     # 投影SAM特征到相同维度
-                #     sam_features = self.sam_proj(sam_features)
-                #
-                #     # 特征融合 - 使用学习的权重
-                #     fusion_weights = self.softmax(self.feature_fusion_weight)
-                #     cam_features = fusion_weights[0] * backbone_features + fusion_weights[1] * sam_features
-                # else:
-                #     cam_features = backbone_features
-                
                 all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
             

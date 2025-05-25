@@ -1,8 +1,8 @@
 policy_class: act_sam_policy
-task_name: pick_and_lift
+task_name: pick_and_lift_small_size
 
 # ------------------ 采样 重现 数据转换 评估 ------------------
-mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
 data_sampler_config:
   save_path_head: 'data' # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
   taskname: ${task_name}
@@ -48,10 +48,14 @@ policy:
   ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
   use_weight: false
   onscreen_render: false
-  sam:
-    sam_checkpoint:  foundation_ckpt/sam_vit_l_0b3195.pth
-    model_type: vit_l
+  sam: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
+    sam_checkpoint:  foundation_ckpt/sam_vit_h_4b8939.pth
+    model_type: vit_h
     sam_feature_dim: 256
+    sam_2d_dim: 64
+    output_2d_dim: # 需要对sam的输出维度映射小一点，不这么做会爆显存，注意，这个映射每个视角共用
+      dim_1: 15
+      dim_0: 20
   # -------Eval-------
   episode_len: 250  # 只影响评估
   ckpt_name: 'policy_last.ckpt'
@@ -60,10 +64,10 @@ policy:
   real_robot: false
   # -------Training-------
   ## ** 基础设置 **
-  dataset_dir: data/${task_name}/20demos_static_hdf5
-  use_wandb: false
+  dataset_dir: data/${task_name}/100demos_hdf5
+  use_wandb: true
   wandb_project_name: ${task_name}
-  batch_size: 1
+  batch_size: 4
   seed: 0
   num_steps: 4000
   train_ratio: 0.99
