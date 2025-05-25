@@ -93,6 +93,10 @@ pip uninstall opencv-python
 pip install opencv-python-headless
 # data_proccess需要
 pip install imageio
+# 配置参数框架
+pip install hydra-core==1.2.0
+pip install omegaconf
+
 ```
 
 ## 错误解决

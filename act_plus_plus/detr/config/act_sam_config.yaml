@@ -1,4 +1,4 @@
-policy_class: act_weight_policy
+policy_class: act_sam_policy
 task_name: pick_and_lift
 
 # ------------------ 采样 重现 数据转换 评估 ------------------
@@ -37,8 +37,8 @@ policy:
   # -------** 通用 **-------
   policy_class: ${policy_class}
   task_name: ${task_name}
-  dataloader_name: act_weight_dataloader
-  model_name: act_weight_model
+  dataloader_name: act_dataloader
+  model_name: act_sam_model
   ckpt_dir: training/${policy_class}_${task_name}/20demos_hdf5_4_4000_fwo
   camera_names:
     - front_camera
@@ -48,6 +48,10 @@ policy:
   ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
   use_weight: false
   onscreen_render: false
+  sam:
+    sam_checkpoint:  foundation_ckpt/sam_vit_l_0b3195.pth
+    model_type: vit_l
+    sam_feature_dim: 256
   # -------Eval-------
   episode_len: 250  # 只影响评估
   ckpt_name: 'policy_last.ckpt'
@@ -59,14 +63,13 @@ policy:
   dataset_dir: data/${task_name}/20demos_static_hdf5
   use_wandb: false
   wandb_project_name: ${task_name}
-  batch_size: 4
+  batch_size: 1
   seed: 0
   num_steps: 4000
   train_ratio: 0.99
   ## 网络架构设置
   state_dim: 8
   action_dim: ${eval:'${policy.state_dim} + 2'}
-  backbone: 'resnet18'
   enc_layers: 4 # CVAE decoder transformer的encoder层数
   dec_layers: 7 # CVAE decoder transformer的decoder层数
   nheads: 8 # CVAE decoder transformer的头数
@@ -83,6 +86,10 @@ policy:
   history_len: null
   future_len: null
   prediction_len: null
+  dilation: false  # 无效
+  lr_backbone: 1e-5 # 无效
+  masks: false # 无效
+  backbone: 'resnet18' # 无效
   ## 模型设置
   kl_weight: 10 # 求总loss = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight的编码器预测权重
   chunk_size: 50 # 动作块长度
@@ -90,14 +97,11 @@ policy:
   dim_feedforward: 3200 # CVAE encoder的第一层layer输出的特征维度
   no_encoder: False # CVAE encoder 是否使用
   lr: 0.00001
-  lr_backbone: 1e-5
   weight_decay: 1e-4
-  dilation: false # backbone（图像编码器）的第三次卷积核的膨胀
   position_embedding: sine # choices=('sine', 'learned')
   dropout: 0.1
   num_queries: ${policy.chunk_size}
   pre_norm: false
-  masks: false # backbone（图像编码器）是否返回中间层的输出
   ### VQVAE 没啥用
   use_vq: false
   vq: ${policy.use_vq}

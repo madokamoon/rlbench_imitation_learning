@@ -213,8 +213,6 @@ def build_encoder(args):
 
 
 def build(args):
-    # act修改维度
-    state_dim = 8
     # From state
     # backbone = None # from state for now, no need for conv nets
     # From image
@@ -234,7 +232,7 @@ def build(args):
         backbones,
         transformer,
         encoder,
-        state_dim=state_dim,
+        state_dim=args.state_dim,
         num_queries=args.num_queries,
         camera_names=args.camera_names,
         vq=args.vq,
