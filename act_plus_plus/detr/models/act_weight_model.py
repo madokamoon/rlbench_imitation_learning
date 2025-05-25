@@ -150,13 +150,9 @@ class DETRVAE(nn.Module):
                 
                 cam_features = self.input_proj(features)
                 
-                # 应用视角权重（如果提供）
-                if view_weights is not None:
-                    if isinstance(view_weights, list):
-                        weight = view_weights[cam_id]
-                    else:  # 假设是tensor
-                        weight = view_weights[cam_id].item() if view_weights.numel() > 1 else view_weights.item()
-                    cam_features = cam_features * weight
+                # 应用视角权重
+                weight = view_weights[:, cam_id:cam_id + 1, None, None]
+                cam_features = cam_features * weight
                 
                 all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
