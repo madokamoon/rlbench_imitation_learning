@@ -598,7 +598,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=5):
+    def act_eval(self, max_attempts=20):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -751,8 +751,8 @@ class RLBenchProcessor:
             avg_costtime = sum(costtime_list) / len(costtime_list) if costtime_list else 0
 
             # 将结果格式化为字符串
-            result_str = f"===== 模型: {self.act_policy.ckpt_path} =====\n"
-            result_str += f"- 时间: {datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')} =====\n"
+            result_str = f"**{self.act_policy.ckpt_path}**\n"
+            result_str += f"- 时间: {datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}\n"
             result_str += f"- 聚合模式: {self.act_policy.temporal_agg}\n"
             result_str += f"- 最大步数: {self.max_steps}\n"
             result_str += f"- 总尝试次数: {attempt}\n"
@@ -768,7 +768,7 @@ class RLBenchProcessor:
             print(result_str)
             
             # 将结果写入文件
-            eval_result_path = "eval_result.txt"
+            eval_result_path = "eval_result.md"
             with open(eval_result_path, 'a', encoding='utf-8') as f:
                 f.write(result_str + "\n\n")
             

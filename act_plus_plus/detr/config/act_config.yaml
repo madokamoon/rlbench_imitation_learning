@@ -12,8 +12,8 @@ data_sampler_config:
     width: 640
     height: 480
   cameras:
-    - 'front_camera'
-    - 'wrist_camera'
+    # - 'front_camera'
+    # - 'wrist_camera'
     # - 'left_shoulder_camera'
     # - 'right_shoulder_camera'
     - 'overhead_camera'
@@ -40,10 +40,10 @@ policy:
   task_name: ${task_name}
   dataloader_name: act_dataloader
   model_name: act_model
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_o
   camera_names:
-    - front_camera
-    - wrist_camera
+    # - front_camera
+    # - wrist_camera
     - overhead_camera
   eval: false
   ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
