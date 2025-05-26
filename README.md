@@ -96,7 +96,13 @@ pip install imageio
 # 配置参数框架
 pip install hydra-core==1.2.0
 pip install omegaconf
-
+# sam
+pip install git+https://github.com/facebookresearch/segment-anything.git  
+# depth_anything 别下载到本项目中
+git clone https://github.com/DepthAnything/Depth-Anything-V2
+cd Depth-Anything-V2
+pip install -r requirements.txt
+pip install xformers
 ```
 
 ## 错误解决
