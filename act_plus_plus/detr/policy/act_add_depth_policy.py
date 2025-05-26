@@ -2,19 +2,21 @@ import torch.nn as nn
 from torch.nn import functional as F
 import torchvision.transforms as transforms
 import torch
-import os,sys
+import os, sys
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import IPython
 import hydra
 import omegaconf
+
 e = IPython.embed
 
 
-class ACTSAMPolicy(nn.Module):
+class ACTAddDepthPolicy(nn.Module):
     def __init__(self, args_override):
         super().__init__()
         model, optimizer = build_ACT_model_and_optimizer(args_override)
-        self.model = model # CVAE decoder
+        self.model = model  # CVAE decoder
         self.optimizer = optimizer
         self.kl_weight = args_override['kl_weight']
         self.vq = args_override['vq']
@@ -26,12 +28,13 @@ class ACTSAMPolicy(nn.Module):
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
         image = normalize(image)
-        if actions is not None: # training time
+        if actions is not None:  # training time
             actions = actions[:, :self.model.num_queries]
             is_pad = is_pad[:, :self.model.num_queries]
 
             loss_dict = dict()
-            a_hat, is_pad_hat, (mu, logvar), probs, binaries = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
+            a_hat, is_pad_hat, (mu, logvar), probs, binaries = self.model(qpos, image, env_state, actions, is_pad,
+                                                                          vq_sample)
             if self.vq or self.model.encoder is None:
                 total_kld = [torch.tensor(0.0)]
             else:
@@ -44,7 +47,7 @@ class ACTSAMPolicy(nn.Module):
             loss_dict['kl'] = total_kld[0]
             loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight
             return loss_dict
-        else: # inference time
+        else:  # inference time
             a_hat, _, (_, _), _, _ = self.model(qpos, image, env_state, vq_sample=vq_sample)
             return a_hat
 
@@ -55,7 +58,7 @@ class ACTSAMPolicy(nn.Module):
         return self(qpos_data, image_data, action_data, is_pad)
 
     def configure_optimizers(self):
-            return self.optimizer
+        return self.optimizer
 
     @torch.no_grad()
     def vq_encode(self, qpos, actions, is_pad):
@@ -65,12 +68,13 @@ class ACTSAMPolicy(nn.Module):
         _, _, binaries, _, _ = self.model.encode(qpos, actions, is_pad)
 
         return binaries
-        
+
     def serialize(self):
         return self.state_dict()
 
     def deserialize(self, model_dict):
         return self.load_state_dict(model_dict)
+
 
 def kl_divergence(mu, logvar):
     batch_size = mu.size(0)
@@ -87,8 +91,8 @@ def kl_divergence(mu, logvar):
 
     return total_kld, dimension_wise_kld, mean_kld
 
-def build_ACT_model_and_optimizer(args):
 
+def build_ACT_model_and_optimizer(args):
     build_model_config = omegaconf.DictConfig({
         "_target_": "act_plus_plus.detr.models." + args.model_name + ".build",
         'args': args
@@ -109,7 +113,8 @@ def build_ACT_model_and_optimizer(args):
 
     return model, optimizer
 
+
 def make_policy(policy_config):
     # 创建策略模型
-    policy = ACTSAMPolicy(policy_config)
+    policy = ACTAddDepthPolicy(policy_config)
     return policy

@@ -1,8 +1,8 @@
-policy_class: act_policy
+policy_class: act_add_depth_policy
 task_name: pick_and_lift_small_size
 
 # ------------------ 采样 重现 数据转换 评估 ------------------
-mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
 data_sampler_config:
   save_path_head: 'data' # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
   taskname: ${task_name}
@@ -37,8 +37,8 @@ policy:
   # -------** 通用 **-------
   policy_class: ${policy_class}
   task_name: ${task_name}
-  dataloader_name: act_dataloader
-  model_name: act_model
+  dataloader_name: act_add_depth_dataloader
+  model_name: act_add_depth_model
   ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000
   camera_names:
     - front_camera
@@ -56,7 +56,7 @@ policy:
   # -------Training-------
   ## ** 基础设置 **
   dataset_dir: data/${task_name}/100demos_hdf5
-  use_wandb: true
+  use_wandb: false
   wandb_project_name: ${task_name}
   batch_size: 4
   seed: 0
