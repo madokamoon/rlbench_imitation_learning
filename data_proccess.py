@@ -306,6 +306,16 @@ class RawToHDF5Converter:
 )
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
+
+    if cfg == {}:
+        print("没有提供配置，使用默认配置")
+        if os.path.exists('data_sampler_local.yaml'):
+            with open('data_sampler_local.yaml', 'r') as f:
+                cfg = yaml.safe_load(f)
+        else:
+            with open('data_sampler.yaml', 'r') as f:
+                cfg = yaml.safe_load(f)
+
     data_proccess_config = cfg["data_proccess_config"]
     save_path_head = data_proccess_config['save_path_head']
     save_path_end = data_proccess_config['save_path_end']

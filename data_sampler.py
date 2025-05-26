@@ -14,6 +14,9 @@ import pickle
 import gc  
 import matplotlib.pyplot as plt
 import sys 
+import hydra
+from omegaconf import OmegaConf
+
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -22,8 +25,9 @@ from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from act_policy_wrapper import ACTPolicyWrapper
 from pyrep.backend import sim
-import hydra
-from omegaconf import OmegaConf
+
+
+from myutils import normalize_quaternion
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
@@ -594,7 +598,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=20):
+    def act_eval(self, max_attempts=5):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -607,10 +611,14 @@ class RLBenchProcessor:
         import traceback  # 导入traceback模块
         from weight.weight import calculate_change_weight
 
-        success_counts = 0  # 成功次数统计
-        error_counts = 0    # 新增：错误次数统计
-        successful_steps = []  # 记录每次成功尝试的步骤数
-        all_attempt_steps = []  # 新增：记录所有尝试的步骤数
+
+        error_counts = 0 
+        all_attempt_steps = [] 
+        min_grapper_object_dis = []
+        min_object_target_dis = []
+        result_list = []  
+        costtime_list = []  
+
         attempt = 0
         
         if self.static_positions == True:
@@ -636,14 +644,21 @@ class RLBenchProcessor:
                 # 执行控制循环
                 success_in_this_attempt = False
                 current_steps = 0  # 新增：记录当前尝试的步骤数
-                has_error = False  # 新增：标记当前尝试是否发生错误
+
+
+                all_frame_data = {
+                    'gripper_object_dis': [],
+                    'object_target_dis': [],
+                    'costtime': []
+                }
 
                 for step in tqdm(range(self.max_steps), desc=f"第 {attempt} 次尝试"):
                     current_steps = step + 1  # 更新当前步骤数
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
-                    formatted_state = [f"{val:8.5f}" for val in robot_state]
-                    print(f"robot_state_:{formatted_state}")
+                    # formatted_state = [f"{val:8.5f}" for val in robot_state]
+                    # print(f"robot_state_:{formatted_state}")
+                    robot_state_copy = robot_state.copy()  
 
                     if self.use_weight :
                         view_weights = []
@@ -662,10 +677,10 @@ class RLBenchProcessor:
                             total_weight = sum(view_weights)
                             norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
                             print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
-                            actaction = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                            actaction,costtime = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
                         else:
                             print("没有上一帧图像，使用默认权重")
-                            actaction = self.act_policy.get_actions(imgdata, robot_state)
+                            actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
                             
                         # 保存当前帧作为下一次迭代的上一帧
                         prev_images = {}
@@ -674,36 +689,28 @@ class RLBenchProcessor:
                                 prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
 
                     else:
-                        actaction = self.act_policy.get_actions(imgdata, robot_state)
+                        actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
                         
-                    # 模型输出转换为末端位姿控制
-                    end_effector_pose = actaction[0:7].copy()
+                    if costtime is not None:   
+                        all_frame_data['costtime'].append(costtime)
 
-                    # 单位化四元数
-                    quat = end_effector_pose[3:7]
-                    norm = np.linalg.norm(quat)
-                    if norm < 1e-6:
-                        quat = np.array([0.0, 0.0, 0.0, 1.0])
-                    else:
-                        quat = quat / norm
-                    end_effector_pose[3:7] = quat
-
-                    # 夹爪控制
-                    gripper_value = actaction[7]
-                    gripper_joint_position = 1 * float(gripper_value > 0.5)
-
-                    # 执行动作
+                    # 模型输出处理
+                    position = actaction[0:3]
+                    
+                    quat = normalize_quaternion(actaction[3:7])
+                    gripper_joint_position = float(actaction[7] > 0.5)
+                    # 动作执行
                     try:
-                        action = np.concatenate([end_effector_pose, [gripper_joint_position]]).astype(np.float32)
-                        formatted_action = [f"{val:8.5f}" for val in action]
-                        print(f"robot_action:{formatted_action}")
+                        action = np.concatenate([position, quat, [gripper_joint_position]]).astype(np.float32)
+                        # formatted_action = [f"{val:8.5f}" for val in action]
+                        # print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
+                        low_dim_state = self.task._task.get_low_dim_state()
+                        all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
+                        all_frame_data['object_target_dis'].append(np.linalg.norm(low_dim_state[0:3] - low_dim_state[3:6] ))
 
                         # 检查任务状态
                         if reward == 1.0:
-                            print(f"\n🎉 第 {attempt} 次尝试任务执行成功! 使用步骤: {step+1}")
-                            success_counts += 1
-                            successful_steps.append(step+1)  # 记录成功所需的步骤数
                             success_in_this_attempt = True
                             break
 
@@ -715,36 +722,58 @@ class RLBenchProcessor:
                         print(f"\n第 {attempt} 次尝试执行动作时发生错误:")
                         traceback.print_exc()  # 打印完整的堆栈跟踪
                         error_counts += 1  # 新增：错误次数加1
-                        has_error = True  # 标记当前尝试发生了错误
                         break
+
+                
                 
                 # 记录当前尝试的步骤数到所有尝试列表
+                result_list.append(success_in_this_attempt)
                 all_attempt_steps.append(current_steps)
-                
-                if not success_in_this_attempt and attempt < max_attempts:
-                    print(f"\n第 {attempt} 次尝试未成功，将重新尝试")
-                    time.sleep(1)
-            
+                min_grapper_object_dis.append(np.min(all_frame_data['gripper_object_dis']))
+                min_object_target_dis.append(np.min(all_frame_data['object_target_dis']))
+                costtime_list.append(np.mean(all_frame_data['costtime']))
+
+                print(f"\n第 {attempt} 次尝试完成，步骤数: {current_steps}, 结果: {success_in_this_attempt}, 推理次数: {1+len(all_frame_data['costtime'])}")
+                print(f"  - 夹爪与物体最小距离: {min(all_frame_data['gripper_object_dis'])*100:.5f} cm")
+                print(f"  - 物体与目标最小距离: {min(all_frame_data['object_target_dis'])*100:.5f} cm")
+                print(f"  - 平均耗时: {np.mean(all_frame_data['costtime']):.5f} 秒")
+
             # 计算统计结果
-            success_rate = success_counts / attempt if attempt > 0 else 0
-            error_rate = error_counts / attempt if attempt > 0 else 0  # 新增：错误率
-            avg_successful_steps = sum(successful_steps) / len(successful_steps) if successful_steps else 0
-            avg_all_steps = sum(all_attempt_steps) / len(all_attempt_steps) if all_attempt_steps else 0  # 新增：所有尝试的平均步骤数
+            success_counts = result_list.count(True)
+            success_rate = success_counts / attempt 
+            error_rate = error_counts / attempt 
+            avg_all_steps = sum(all_attempt_steps) / len(all_attempt_steps)
+            success_steps = [step for result, step in zip(result_list, all_attempt_steps) if result]
+            average_success_steps = sum(success_steps) / len(success_steps) if success_steps else 0
+
+            avg_min_grapper_object_dis = sum(min_grapper_object_dis) / len(min_grapper_object_dis) 
+            avg_min_object_target_dis = sum(min_object_target_dis) / len(min_object_target_dis)
+            avg_costtime = sum(costtime_list) / len(costtime_list) if costtime_list else 0
+
+            # 将结果格式化为字符串
+            result_str = f"===== 模型: {self.act_policy.ckpt_path} =====\n"
+            result_str += f"- 时间: {datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')} =====\n"
+            result_str += f"- 聚合模式: {self.act_policy.temporal_agg}\n"
+            result_str += f"- 最大步数: {self.max_steps}\n"
+            result_str += f"- 总尝试次数: {attempt}\n"
+            result_str += f"- 成功率: {success_rate:.2%}\n"
+            result_str += f"- 错误率: {error_rate:.2%}\n"
+            result_str += f"- 平均步骤数: {avg_all_steps:.2f}\n"
+            result_str += f"- 平均成功步骤数: {average_success_steps:.2f}\n"
+            result_str += f"- 平均最小夹爪物体距离: {avg_min_grapper_object_dis*100:.5f} cm\n"
+            result_str += f"- 平均最小物体终点距离: {avg_min_object_target_dis*100:.5f} cm\n"
+            result_str += f"- 平均推理耗时: {avg_costtime:.5f} 秒"
             
-            print(f"\n===== 评估结果统计 =====")
-            print(f"- 总尝试次数: {attempt}")
-            print(f"- 成功次数: {success_counts}")
-            print(f"- 成功率: {success_rate:.2%}")
-            print(f"- 平均成功步骤数: {avg_successful_steps:.2f}")
-            if successful_steps:
-                print(f"- 最少步骤数: {min(successful_steps)}")
-                print(f"- 最多步骤数: {max(successful_steps)}")
-            # 新增的评估指标
-            print(f"- 错误次数: {error_counts}")
-            print(f"- 错误率: {error_rate:.2%}")
-            print(f"- 所有尝试的平均步骤数: {avg_all_steps:.2f}")
+            # 打印结果
+            print(result_str)
             
-            return success_rate, avg_successful_steps
+            # 将结果写入文件
+            eval_result_path = "eval_result.txt"
+            with open(eval_result_path, 'a', encoding='utf-8') as f:
+                f.write(result_str + "\n\n")
+            
+            print(f"评估结果已保存到: {eval_result_path}")
+
 
         except Exception as e:
             print(f"任务执行过程中发生错误:")
@@ -827,6 +856,16 @@ class RLBenchProcessor:
 )
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
+
+    if cfg == {}:
+        print("没有提供配置，使用默认配置")
+        if os.path.exists('data_sampler_local.yaml'):
+            with open('data_sampler_local.yaml', 'r') as f:
+                cfg = yaml.safe_load(f)
+        else:
+            with open('data_sampler.yaml', 'r') as f:
+                cfg = yaml.safe_load(f)
+
     processor = RLBenchProcessor(cfg)
     processor.run()
 

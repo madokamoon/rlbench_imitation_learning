@@ -1,19 +1,16 @@
-
 # 不要修改该文件
 # 程序优先使用本地文件 data_sampler_local.yaml 
+# 只支持 0 采样 1 重现
 
-# 0 采样 1 重现 2 评估
-mode: 0
+# ------------------ 采样 重现 ------------------
+mode: ["*collect_and_save_demos", "process_all_epochs"]
 
-
-
-# ------------------ 采样 重现 数据转换 评估 ------------------ 
 data_sampler_config:
 # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳 
   save_path_head: &save_path_head      'data'
   taskname: &taskname                  'pick_and_lift_small_size'
-  save_path_end: &save_path_end        '100demos'
-  num_demos: 100
+  save_path_end: &save_path_end        'test'
+  num_demos: 2
   image:
     width:  &image_width   640
     height: &image_height  480
@@ -28,68 +25,14 @@ data_sampler_config:
   headless: False
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
 
-# ------------------ 数据转换 ------------------ 
+
+  # ------------------ 数据转换 ------------------ 
 data_proccess_config:
-    save_path_head: *save_path_head
-    save_path_end: *save_path_end    #如果收集时候留空了，这里要正确填写时间戳
-    taskname: *taskname  
-    image_width: *image_width
-    image_height: *image_height
-    end_pad: True               # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据，此时请把下面的 episode_len 设置最该长度
-
-
-# ------------------ 训练 评估 ------------------   
-act_policy:
-  'task_config':
-    'dataset_dir': 'data/pick_and_lift_small_size/100demos_hdf5'
-    'episode_len': 250  # 只影响评估
-    # 'train_ratio': 0.95
-    camera_names:
-    - front_camera
-    - wrist_camera
-    - overhead_camera
-
-  'show_3D_state': false
-  'ckpt_dir_end': null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
-  'ckpt_name': 'policy_best.ckpt'
-  'use_weight': false
-  'wandb_project_name': 'pick_and_lift_small_size'
-  # 同 imitate_episodes.py 的所有 argparse 参数
-  'eval': false
-  'onscreen_render': false
-  'ckpt_dir': 'training/pick_and_lift_small_size/100demos_8_50_10000_fwo'
-  'policy_class': 'ACT'
-  'task_name': 'pick_and_lift_small_size'
-  'batch_size': 8
-  'seed': 0
-  'num_steps': 10000
-  'lr': 0.00001
-  'load_pretrain': False
-  'eval_every': 1000
-  'validate_every': 1000
-  'save_every': 1000
-  'resume_ckpt_path': null
-  'skip_mirrored_data': false
-  'actuator_network_dir': null
-  'history_len': null
-  'future_len': null
-  'prediction_len': null
-  # for ACT
-  'kl_weight': 10
-  'chunk_size': 50
-  'hidden_dim': 512
-  'dim_feedforward': 3200
-  'temporal_agg': false
-  'use_vq': false
-  'vq_class': null
-  'vq_dim': null
-  'no_encoder': False
-
-
-
-
-
-  
-
-
-
+  save_path_head: *save_path_head
+  save_path_end: *save_path_end    #如果收集时候留空了，这里要正确填写时间戳
+  taskname: *taskname  
+  image_width: *image_width
+  image_height: *image_height
+  end_pad: true  # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据
+  threads: 8  # 并行处理的线程数
+  weightflag: false 

@@ -56,6 +56,7 @@ class ACTPolicyWrapper:
             stats = pickle.load(f)
 
         # self参数    
+        self.ckpt_path = ckpt_path
         self.pre_process = lambda s_qpos: (s_qpos - stats['qpos_mean']) / stats['qpos_std']
         self.post_process = lambda a: a * stats['action_std'] + stats['action_mean']
         self.show_3D_state = args['show_3D_state']
@@ -68,7 +69,7 @@ class ACTPolicyWrapper:
         if self.temporal_agg:
             self.query_frequency = 1
             self.num_queries = args['num_queries']
-            self.all_time_actions_zeros = torch.zeros([args['episode_len'], args['episode_len']+self.num_queries, 10]).cuda()
+            self.all_time_actions_zeros = torch.zeros([args['episode_len'],args['episode_len'] + self.num_queries, 10]).cuda()
 
         # 重置    
         self.reset()
@@ -86,7 +87,6 @@ class ACTPolicyWrapper:
         curr_images = []
         # camera_ids = list(imgdata.keys())
         camera_ids = self.camera_names 
-        print(f"preprocess_images相机ID: {camera_ids}")
         for cam_id in camera_ids:
             pil_img = Image.fromarray(imgdata[cam_id])
             resized_img = np.array(pil_img.resize((640, 480), Image.BILINEAR))
@@ -122,7 +122,7 @@ class ACTPolicyWrapper:
         """
 
         with torch.inference_mode():
-            time1 = time.time()
+            time_start = time.time()
 
             # 处理状态数据（包括机器人状态和夹爪状态）
             state = robot_state.copy()
@@ -140,15 +140,12 @@ class ACTPolicyWrapper:
                 # warm up
                 for _ in range(10):
                     self.policy(qpos, curr_image)
-                print('network warm up done')
-                time1 = time.time()
 
             if self.step % self.query_frequency == 0:
                 if view_weights is not None:
                     self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
                 else:
                     self.all_actions = self.policy(qpos, curr_image)
-                print(self.query_frequency,'次一推理')
 
                 if self.show_3D_state:
                     # ------------------------------绘制---------------------------------
@@ -252,9 +249,18 @@ class ACTPolicyWrapper:
             action = self.post_process(raw_action)
             target_qpos = action[:-2]
 
+        
+            time_end = time.time()
+
+            if self.step % self.query_frequency == 0 and self.step != 0:
+                costtime = time_end - time_start
+            else:
+                costtime = None
+
+
             self.step+=1
 
-            return target_qpos
+            return target_qpos, costtime
 
 
 
