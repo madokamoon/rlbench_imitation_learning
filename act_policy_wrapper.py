@@ -7,148 +7,79 @@ import torch
 import pickle
 from einops import rearrange
 import hydra
-from omegaconf import OmegaConf
 import omegaconf
-# ACT模块
-from act_plus_plus.utils import set_seed
-from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
-from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
 
 
 class ACTPolicyWrapper:
 
     def __init__(self, args):
 
-        set_seed(1)
+        # 设置随机种子
+        torch.manual_seed(args['seed'])
+        np.random.seed(args['seed'])
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"使用设备: {self.device}")
-
-        ckpt_dir = args['ckpt_dir']
-        str_time = args['ckpt_dir_end']
-        if str_time is not None:
-            ckpt_dir = os.path.join(ckpt_dir, str_time)
-        policy_class = args['policy_class']
-        onscreen_render = args['onscreen_render']
-        task_name = args['task_name']
-        num_steps = args['num_steps']
-        resume_ckpt_path = args['resume_ckpt_path']
-        episode_len = args['episode_len']
-        camera_names = args['camera_names']
-        # act修改维度
-        state_dim = args['state_dim']
-        lr_backbone = args['lr_backbone']
-        backbone = args['backbone']
-
-        # # act修改 训练保存结果路径加入时间戳
-        # if args['ckpt_dir_end'] != None:
-        #     now_time = datetime.datetime.now()
-        #     str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-        #     ckpt_dir = os.path.join(ckpt_dir, str_time)
-
-        policy_config = args
-        actuator_config = {
-            'actuator_network_dir': args['actuator_network_dir'],
-            'history_len': args['history_len'],
-            'future_len': args['future_len'],
-            'prediction_len': args['prediction_len'],
-        }
-        evalconfig = {
-            'policy_config': policy_config,
-            'actuator_config': actuator_config,
-        }
-
-        if not os.path.isdir(ckpt_dir):
-            os.makedirs(ckpt_dir)
-        config_path = os.path.join(ckpt_dir, 'config.pkl')
-        expr_name = ckpt_dir.split('/')[-1]
-        
-        OmegaConf.save(config=evalconfig, f=config_path, resolve=True)
-
-        # ----------------------------eval_bc 函数--------------------------------------------
-        # ----------------------------eval_bc 函数--------------------------------------------
-
-        ckpt_name = args['ckpt_name']
-        save_episode=True
-        num_rollouts=10
-
-        set_seed(1000)
-
-        ckpt_dir = policy_config['ckpt_dir']
-        state_dim = policy_config['state_dim']
-        # real_robot = policy_config['real_robot']
-        policy_class = policy_config['policy_class']
-        onscreen_render = policy_config['onscreen_render']
-        camera_names = policy_config['camera_names']
-        max_timesteps = policy_config['episode_len']
-        task_name = policy_config['task_name']
-        temporal_agg = policy_config['temporal_agg']
-        onscreen_cam = 'angle'
-        vq = evalconfig['policy_config']['vq']
-        use_actuator_net = actuator_config['actuator_network_dir'] is not None
-
-        # load policy and stats
-        ckpt_path = os.path.join(ckpt_dir, ckpt_name)
         # 创建策略模型
         make_policy_config = omegaconf.DictConfig({
-            "_target_": "act_plus_plus.detr.policy." + policy_class + ".make_policy",
-            'policy_config': policy_config
+            "_target_": "act_plus_plus.detr.policy." + args['policy_class'] + ".make_policy",
+            'policy_config': args
         })
 
+        # 加载模型参数
+        ckpt_dir = args['ckpt_dir']
+        if args['ckpt_dir_end'] is not None:
+            ckpt_dir = os.path.join(ckpt_dir, args['ckpt_dir_end'])
+        ckpt_path = os.path.join(ckpt_dir, args['ckpt_name'])
         policy = hydra.utils.call(make_policy_config)
-
-
-
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"使用设备: {device}")
+        loading_status = policy.deserialize(torch.load(ckpt_path, map_location=device))
+        print(f'使用参数： {ckpt_path} ')
+        print(f'加载情况：{loading_status}')
         policy.cuda()
         policy.eval()
-        if vq:
-            vq_dim = evalconfig['policy_config']['vq_dim']
-            vq_class = evalconfig['policy_config']['vq_class']
+        
+        # vq模式
+        if args['vq']:
+            vq_dim = args['vq_dim']
+            vq_class = args['vq_class']
+            from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
             latent_model = Latent_Model_Transformer(vq_dim, vq_dim, vq_class)
             latent_model_ckpt_path = os.path.join(ckpt_dir, 'latent_model_last.ckpt')
             latent_model.deserialize(torch.load(latent_model_ckpt_path))
             latent_model.eval()
             latent_model.cuda()
             print(f'Loaded policy from: {ckpt_path}, latent model from: {latent_model_ckpt_path}')
-        else:
-            print(f'Loaded: {ckpt_path}')
+
+        # 数据集统计信息及动作处理   
         stats_path = os.path.join(ckpt_dir, f'dataset_stats.pkl')
         with open(stats_path, 'rb') as f:
             stats = pickle.load(f)
 
+        # self参数    
         self.pre_process = lambda s_qpos: (s_qpos - stats['qpos_mean']) / stats['qpos_std']
-        if policy_class == 'Diffusion':
-            self.post_process = lambda a: ((a + 1) / 2) * (stats['action_max'] - stats['action_min']) + stats['action_min']
-        else:
-            self.post_process = lambda a: a * stats['action_std'] + stats['action_mean']
-
-        # act 修改
-        query_frequency = policy_config['num_queries']
-        if temporal_agg:
-            query_frequency = 1
-            num_queries = policy_config['num_queries']
-            self.num_queries = num_queries
-
-
-        max_timesteps = int(max_timesteps * 1) # may increase for real-world tasks
-
-        if temporal_agg:
-            # 修改维度
-            all_time_actions_zeros = torch.zeros([max_timesteps, max_timesteps+num_queries, 10]).cuda()
-            self.all_time_actions_zeros = all_time_actions_zeros
-            self.all_time_actions = all_time_actions_zeros
-            
-        # self
-        self.policy = policy
-        self.temporal_agg = temporal_agg
-        self.query_frequency = query_frequency
-        self.camera_names = camera_names
+        self.post_process = lambda a: a * stats['action_std'] + stats['action_mean']
         self.show_3D_state = args['show_3D_state']
+        self.temporal_agg = args['temporal_agg']
+        self.camera_names = args['camera_names']
+        self.query_frequency = args['num_queries']
+        self.policy = policy
 
+        # 聚合模式
+        if self.temporal_agg:
+            self.query_frequency = 1
+            self.num_queries = args['num_queries']
+            self.all_time_actions_zeros = torch.zeros([args['episode_len'], args['episode_len']+self.num_queries, 10]).cuda()
+
+        # 重置    
+        self.reset()
+
+        print("ACT模型初始化完成!")
+
+    def reset(self):
         self.step = 0
-
-
-        print("ACT模型加载完成")
+        if self.temporal_agg:
+            self.all_time_actions = self.all_time_actions_zeros
+        return True
 
     def preprocess_images(self, imgdata):
         """预处理图像数据为模型输入格式"""
@@ -163,7 +94,6 @@ class ACTPolicyWrapper:
             curr_images.append(curr_image)
         curr_image = np.stack(curr_images, axis=0)
         curr_image = torch.from_numpy(curr_image / 255.0).float().cuda().unsqueeze(0)
-
         return curr_image
     
     def visualize_tensor(self, tensor):
@@ -189,11 +119,6 @@ class ACTPolicyWrapper:
     def get_actions(self, imgdata, robot_state, view_weights=None):
         """
         从当前状态和图像预测动作
-        
-        参数:
-            imgdata: 图像数据
-            robot_state: 机器人状态
-            view_weights: 各视角权重，shape为[num_cameras]，可选
         """
 
         with torch.inference_mode():
@@ -331,18 +256,7 @@ class ACTPolicyWrapper:
 
             return target_qpos
 
-    def reset(self):
-        """
-        重置模型状态到初始状态，用于任务重新执行时调用
-        """
-        print("重置ACT策略状态...")
-        # 重置步数计数器
-        self.step = 0
-        if self.temporal_agg:
-            self.all_time_actions = self.all_time_actions_zeros
-    
-        print("ACT策略状态已重置")
-        return True
+
 
 
 

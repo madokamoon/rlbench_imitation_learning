@@ -159,6 +159,7 @@ def main(args):
     feature_extractors = {}
     for cam_name in camera_names:
         resnet = torchvision.models.resnet18(pretrained=True)
+        print('皓月')
         loading_status = resnet.load_state_dict(torch.load(model_dir.replace('DUMMY', cam_name)))
         print(cam_name, loading_status)
         resnet = nn.Sequential(*list(resnet.children())[:-1])
