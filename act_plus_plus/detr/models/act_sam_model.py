@@ -133,6 +133,10 @@ class DETRVAE(nn.Module):
         """
         latent_input, probs, binaries, mu, logvar = self.encode(qpos, actions, is_pad, vq_sample)
 
+        # 先一次性用 Sam Encoder处理一遍
+        images_to_sam_encoder = image.reshape([-1, *image.shape[2:]])
+        sam_encoder_features = self.sam_encoder(images_to_sam_encoder)
+        sam_encoder_features = sam_encoder_features.reshape([*image.shape[:2], *sam_encoder_features.shape[1:]])
         # cvae decoder
         if self.sam_encoder is not None:
             # Image observation features and position embeddings
@@ -140,7 +144,7 @@ class DETRVAE(nn.Module):
             all_cam_pos = []
             for cam_id, cam_name in enumerate(self.camera_names):
                 # 原始骨干网络特征提取
-                features = self.sam_encoder(image[:, cam_id])
+                features = sam_encoder_features[:, cam_id]
                 pos = self.pos_embeds[cam_id](features)
                 
                 cam_features = self.input_proj(features)

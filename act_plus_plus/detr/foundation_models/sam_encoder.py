@@ -44,7 +44,7 @@ class SAMEncoder(nn.Module):
         
         self.device = device
         self.num_channels = sam_feature_dim
-        self.image_encoder.to(device)
+        self.image_encoder.to(device).eval()
     
     def forward(self, image: torch.Tensor):
         """
