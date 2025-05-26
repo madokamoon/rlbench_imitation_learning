@@ -29,8 +29,9 @@ data_proccess_config:
   taskname: ${task_name}
   image_width: ${data_sampler_config.image.width}
   image_height: ${data_sampler_config.image.height}
-  end_pad: true # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据，此时请把下面的 episode_len 设置最该长度
-  threads: 2 # 并行处理的线程数
+  end_pad: true # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据
+  threads: 8 # 并行处理的线程数
+  weightflag: false 
 
 # ------------------ 训练 评估 ------------------
 policy:

@@ -20,7 +20,7 @@ from weight.weight import calculate_change_weight
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, weightflag=False):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -29,7 +29,8 @@ class RawToHDF5Converter:
         self.prev_frames = {}  # 存储前一帧的图像
         self.image_width = image_width
         self.image_height = image_height
-        self.end_pad = end_pad  # 添加 end_pad 参数
+        self.end_pad = end_pad 
+        self.weightflag = weightflag 
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -82,11 +83,11 @@ class RawToHDF5Converter:
             for f in os.listdir(folder_path):
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
-                        pass # 不转换深度图像
-                        # local_camera_names.append(f)
+                        # pass # 不转换深度图像
+                        local_camera_names.append(f)
                     elif f.endswith('mask'):
-                        pass # 不转换mask图像
-                        # local_camera_names.append(f)
+                        # pass # 不转换mask图像
+                        local_camera_names.append(f)
                     elif f.endswith('camera'):
                         local_camera_names.append(f)
                         
@@ -163,11 +164,15 @@ class RawToHDF5Converter:
                     local_datas[f'/observations/images/{cam_name}'].append(img_array)
                     
                     # 计算权重（与前一帧比较）
-                    if frame_idx > 0 and cam_name in local_prev_frames:
-                        # 计算当前帧与前一帧的变化权重
-                        weight = calculate_change_weight(local_prev_frames[cam_name], img_array)
+                    if self.weightflag:
+                        if frame_idx > 0 and cam_name in local_prev_frames:
+                            # 计算当前帧与前一帧的变化权重
+                            weight = calculate_change_weight(local_prev_frames[cam_name], img_array)
+                        else:
+                            # 第一帧或无前一帧数据时，设置默认权重1.0
+                            weight = 1.0
                     else:
-                        # 第一帧或无前一帧数据时，设置默认权重1.0
+                        # 如果weightflag为False，直接设置权重为1.0
                         weight = 1.0
                     
                     # 暂存权重
@@ -253,8 +258,17 @@ class RawToHDF5Converter:
             # 创建图像组
             image = obs.create_group('images')
             for cam_name in camera_names:
-                _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
-                                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
+                if cam_name.endswith('depth'):
+                    _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width), 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width)) 
+                elif cam_name.endswith('mask'):
+                    _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
+                elif cam_name.endswith('camera'):
+                    _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
+
+
             # 创建权重组
             weight = obs.create_group('weight')
             
@@ -300,6 +314,7 @@ def main(cfg: OmegaConf):
     image_height = data_proccess_config['image_height']
     end_pad = data_proccess_config['end_pad']
     max_workers = data_proccess_config['threads']
+    weightflag = data_proccess_config['weightflag']
 
     # 保存路径
     task_path = os.path.join(save_path_head, taskname)
@@ -338,7 +353,8 @@ def main(cfg: OmegaConf):
     converter = RawToHDF5Converter(input_path, output_path,
                                    image_width=image_width,
                                    image_height=image_height,
-                                   end_pad=end_pad)
+                                   end_pad=end_pad,
+                                   weightflag=weightflag)
 
     # 如果未指定线程数，使用处理器核心数
     if max_workers is None:
