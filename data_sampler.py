@@ -20,7 +20,7 @@ from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPose
 from rlbench.action_modes.gripper_action_modes import GripperJointPosition,Discrete
 from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
-from act_policy_wrapper import ACTPolicyWrapper
+from act_policy_wrapper_0 import ACTPolicyWrapper
 from pyrep.backend import sim
 import hydra
 from omegaconf import OmegaConf

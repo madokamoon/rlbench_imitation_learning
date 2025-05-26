@@ -6,8 +6,6 @@ import time
 import torch
 import pickle
 from einops import rearrange
-import copy
-import datetime
 import hydra
 from omegaconf import OmegaConf
 import omegaconf
@@ -22,33 +20,21 @@ class ACTPolicyWrapper:
     def __init__(self, args):
 
         set_seed(1)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用设备: {self.device}")
 
-        is_eval = args['eval']
         ckpt_dir = args['ckpt_dir']
-        if args['ckpt_dir_end'] is not None:
-            ckpt_dir = os.path.join(ckpt_dir, args['ckpt_dir_end'])
+        str_time = args['ckpt_dir_end']
+        if str_time is not None:
+            ckpt_dir = os.path.join(ckpt_dir, str_time)
         policy_class = args['policy_class']
         onscreen_render = args['onscreen_render']
         task_name = args['task_name']
-        batch_size_train = args['batch_size']
-        batch_size_val = args['batch_size']
         num_steps = args['num_steps']
-        eval_every = args['eval_every']  # 训练时候 多少step评估一次
-        validate_every = args['validate_every']
-        save_every = args['save_every']
         resume_ckpt_path = args['resume_ckpt_path']
-        use_wandb = args['use_wandb']
-        dataset_dir = args['dataset_dir']
         episode_len = args['episode_len']
         camera_names = args['camera_names']
-        dataloader_name = args['dataloader_name']
-        stats_dir = args.get('stats_dir', None)
-        sample_weights = args.get('sample_weights', None)
-        train_ratio = args.get('train_ratio', 0.99)
-        name_filter = args.get('name_filter', lambda n: True)
-        is_sim = task_name[:4] == 'sim_'
         # act修改维度
         state_dim = args['state_dim']
         lr_backbone = args['lr_backbone']
@@ -76,7 +62,7 @@ class ACTPolicyWrapper:
             os.makedirs(ckpt_dir)
         config_path = os.path.join(ckpt_dir, 'config.pkl')
         expr_name = ckpt_dir.split('/')[-1]
-
+        
         OmegaConf.save(config=evalconfig, f=config_path, resolve=True)
 
         # ----------------------------eval_bc 函数--------------------------------------------
@@ -108,9 +94,11 @@ class ACTPolicyWrapper:
             "_target_": "act_plus_plus.detr.policy." + policy_class + ".make_policy",
             'policy_config': policy_config
         })
+
         policy = hydra.utils.call(make_policy_config)
-        # loading_status = policy.deserialize(torch.load(ckpt_path, map_location=self.device))
-        # print(loading_status)
+
+
+
         policy.cuda()
         policy.eval()
         if vq:

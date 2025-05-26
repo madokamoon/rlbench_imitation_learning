@@ -4,14 +4,16 @@ from PIL import Image
 import numpy as np
 import time
 import torch
-import pickle
+import pickle,omegaconf,hydra
 from einops import rearrange
-import copy
+import copy,yaml
+from pprint import pprint
 # ACT模块
 from act_plus_plus.utils import set_seed
 from act_plus_plus.policy import ACTPolicy, CNNMLPPolicy, DiffusionPolicy
 from act_plus_plus.detr.models.latent_model import Latent_Model_Transformer
-
+from omegaconf import OmegaConf
+OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class ACTPolicyWrapper:
 
@@ -37,20 +39,20 @@ class ACTPolicyWrapper:
         num_steps = args['num_steps']
         resume_ckpt_path = args['resume_ckpt_path']
 
-        task_config = args.get('task_config')
-        dataset_dir = task_config['dataset_dir']
-        episode_len = task_config['episode_len']
-        camera_names = task_config['camera_names']
-        stats_dir = task_config.get('stats_dir', None)
-        sample_weights = task_config.get('sample_weights', None)
-        train_ratio = task_config.get('train_ratio', 0.99)
-        name_filter = task_config.get('name_filter', lambda n: True)
+
+        dataset_dir = args['dataset_dir']
+        episode_len = args['episode_len']
+        camera_names = args['camera_names']
+        stats_dir = args.get('stats_dir', None)
+        sample_weights = args.get('sample_weights', None)
+        train_ratio = args.get('train_ratio', 0.99)
+        name_filter = args.get('name_filter', lambda n: True)
 
         # 修改维度
         state_dim = 8
         lr_backbone = 1e-5
         backbone = 'resnet18'
-        if policy_class == 'ACT':
+        if policy_class == 'act_policy':
             enc_layers = 4
             dec_layers = 7
             nheads = 8
@@ -77,8 +79,64 @@ class ACTPolicyWrapper:
                             'seed': args['seed'],
                             'num_steps': args["num_steps"],
                             'policy_class': args['policy_class'],
-                            'ckpt_dir': args['ckpt_dir']
+                            'ckpt_dir': args['ckpt_dir'],
+                            'model_name' : 'act_model',
+
+
+                            'dataloader_name': 'act_dataloader',
+                            'model_name': 'act_model',
+                            
+                            'eval': False,
+
+                            # -------Training-------
+                            ## ** 基础设置 **
+
+                            'batch_size': 4,
+
+                            ## 网络架构设置
+                            'state_dim': 8,
+                            'action_dim': 10,
+                            'backbone': 'resnet18',
+                            'enc_layers': 4, # CVAE decoder transformer的encoder层数
+                            'dec_layers': 7, # CVAE decoder transformer的decoder层数
+                            'nheads': 8, # CVAE decoder transformer的头数
+                            ## 预训练
+                            'load_pretrain': False,
+                            'resume_ckpt_path': None, #建议使用这个
+                            ## 输出设置
+                            'eval_every': 1000,
+                            'validate_every': 1000,
+                            'save_every': 1000,
+                            ## 不知道有啥用但是保留了
+                            'skip_mirrored_data': False,
+                            'actuator_network_dir': None,
+                            'history_len': None,
+                            'future_len': None,
+                            'prediction_len': None,
+                            ## 模型设置
+                            'kl_weight': 10, # 求总loss = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight的编码器预测权重
+                            'chunk_size': 50, # 动作块长度
+                            'hidden_dim': 512, # 各种训练数据的特征会被投影成这个维度再进行后续处理
+                            'dim_feedforward': 3200, # CVAE encoder的第一层layer输出的特征维度
+                            'no_encoder': False, # CVAE encoder 是否使用
+                            'lr': 0.00001,
+                            'lr_backbone': 1e-5,
+                            'weight_decay': 1e-4,
+                            'dilation': False, # backbone（图像编码器）的第三次卷积核的膨胀
+                            'position_embedding': 'sine', # choices=('sine', 'learned')
+                            'dropout': 0.1,
+                            'num_queries': 50,
+                            'pre_norm': False,
+                            'masks': False, # backbone（图像编码器）是否返回中间层的输出
+                            ### VQVAE 没啥用
+                            'use_vq': False,
+                            'vq': False,
+                            'vq_class': None,
+                            'vq_dim': None
+
+
                             }
+
         else:
             raise NotImplementedError
 
@@ -144,7 +202,19 @@ class ACTPolicyWrapper:
 
         # load policy and stats
         ckpt_path = os.path.join(ckpt_dir, ckpt_name)
-        policy = self.make_policy(policy_class, policy_config)
+
+        # policy = self.make_policy(policy_class, policy_config)
+
+        # 创建策略模型
+        make_policy_config = omegaconf.DictConfig({
+            "_target_": "act_plus_plus.detr.policy." + policy_class + ".make_policy",
+            'policy_config': policy_config
+        })
+
+        policy = hydra.utils.call(make_policy_config)
+
+
+
         loading_status = policy.deserialize(torch.load(ckpt_path, map_location=self.device))
         print(loading_status)
         policy.cuda()
@@ -281,7 +351,7 @@ class ACTPolicyWrapper:
                 time1 = time.time()
 
             if self.step % self.query_frequency == 0:
-                self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
+                self.all_actions = self.policy(qpos, curr_image)
                 print(self.query_frequency,'次一推理')
 
                 if self.show_3D_state:
