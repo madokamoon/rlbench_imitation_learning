@@ -52,11 +52,11 @@ class ACTPolicyWrapper:
         lr_backbone = args['lr_backbone']
         backbone = args['backbone']
 
-        # act修改 训练保存结果路径加入时间戳
-        if args['ckpt_dir_end'] != None:
-            now_time = datetime.datetime.now()
-            str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
-            ckpt_dir = os.path.join(ckpt_dir, str_time)
+        # # act修改 训练保存结果路径加入时间戳
+        # if args['ckpt_dir_end'] != None:
+        #     now_time = datetime.datetime.now()
+        #     str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
+        #     ckpt_dir = os.path.join(ckpt_dir, str_time)
 
         policy_config = args
         actuator_config = {
@@ -88,7 +88,7 @@ class ACTPolicyWrapper:
 
         ckpt_dir = policy_config['ckpt_dir']
         state_dim = policy_config['state_dim']
-        real_robot = policy_config['real_robot']
+        # real_robot = policy_config['real_robot']
         policy_class = policy_config['policy_class']
         onscreen_render = policy_config['onscreen_render']
         camera_names = policy_config['camera_names']
@@ -150,7 +150,6 @@ class ACTPolicyWrapper:
             
         # self
         self.policy = policy
-        self.loading_status = loading_status
         self.temporal_agg = temporal_agg
         self.query_frequency = query_frequency
         self.camera_names = camera_names
@@ -230,7 +229,10 @@ class ACTPolicyWrapper:
                 time1 = time.time()
 
             if self.step % self.query_frequency == 0:
-                self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
+                if view_weights is not None:
+                    self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
+                else:
+                    self.all_actions = self.policy(qpos, curr_image)
                 print(self.query_frequency,'次一推理')
 
                 if self.show_3D_state:

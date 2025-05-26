@@ -50,7 +50,7 @@ class RLBenchProcessor:
         self.static_positions = data_sampler_config['static_positions']
         self.headless = data_sampler_config['headless']
         self.robot_init_state = data_sampler_config['robot_init_state']
-
+        
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
         if self.save_path_end == "":
@@ -64,6 +64,7 @@ class RLBenchProcessor:
         if self.mode == "act_eval":
             act_policy_config = config['policy']
             self.camera_names_forward = act_policy_config['camera_names']
+            self.use_weight = act_policy_config['use_weight']
             self.max_steps =  act_policy_config['episode_len']
             self.act_policy = ACTPolicyWrapper(act_policy_config)
 
