@@ -1,30 +1,4 @@
-import torch
-from torch import nn
 from segment_anything import sam_model_registry
-
-class SAMEncoder(nn.Module):
-    def __init__(self, sam_checkpoint, model_type="vit_h", device="cuda"):
-        super().__init__()
-        # 只加载图像编码器部分
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        self.image_encoder = sam.image_encoder
-        
-        # 冻结SAM编码器参数
-        for param in self.image_encoder.parameters():
-            param.requires_grad = False
-        
-        self.device = device
-        self.image_encoder.to(device)
-    
-    def forward(self, image):
-        # SAM编码器输入预处理
-        # 注意SAM输入尺寸要求可能与原始模型不同，需要调整
-        with torch.no_grad():  # 确保不计算梯度
-            image_embedding = self.image_encoder(image)
-        return image_embedding
-
-from segment_anything import sam_model_registry
-
 import math
 import torch
 import torch.nn as nn
@@ -32,7 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.nn.parameter import Parameter
 from segment_anything.modeling import Sam
-
+import IPython
+e = IPython.embed
 
 class _LoRA_qkv(nn.Module):
     """In Sam it is implemented as
@@ -96,21 +71,46 @@ class LoRA_Sam(nn.Module):
     将原始 Sam 模型作为属性存储，使得微调后的模型可以在需要时访问原始模型的其他部分或属性。
     '''
 
-    def __init__(self, sam_model: Sam, r: int, lora_layer=None):
+    def __init__(self, args):
         super(LoRA_Sam, self).__init__()
+        # 加载参数
+        sam_checkpoint = args["sam_checkpoint"]
+        model_type = args["model_type"]
+        sam_feature_dim = args["sam_feature_dim"]
+        sam_2d_dim = args["sam_2d_dim"]
+        output_2d_dim_1 = args["output_2d_dim"]["dim_1"]
+        output_2d_dim_0 = args["output_2d_dim"]["dim_0"]
+        r = args["lora"]["r"]
         assert r > 0
+        lora_layer = args["lora"]["lora_layer"]
+        device = "cuda" # unconfig
+        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        # 只加载图像编码器部分
+        self.sam_2d_dim = sam_2d_dim
+        self.output_2d_dim_1 = output_2d_dim_1
+        self.output_2d_dim_0 = output_2d_dim_0
+        self.sam_encoder = sam.image_encoder
+        self.device = device
+        self.num_channels = sam_feature_dim
+        # 冻结SAM编码器参数
+        for param in self.sam_encoder.parameters():
+            param.requires_grad = False
+        self.sam_encoder.to(device).eval()
+
+        # 创建Lora层
+        self.r = r
+        self.lora_layer = lora_layer
+
         if lora_layer:
             self.lora_layer = lora_layer
         else:
             self.lora_layer = list(
-                range(len(sam_model.image_encoder.blocks)))
+                range(len(self.sam_encoder.blocks)))
         self.w_As = []
         self.w_Bs = []
 
-        for param in sam_model.image_encoder.parameters():
-            param.requires_grad = False
         # 遍历图像编码器的每一层。返回索引和这个块本身
-        for t_layer_i, blk in enumerate(sam_model.image_encoder.blocks):
+        for t_layer_i, blk in enumerate(self.sam_encoder.blocks):
             # 如果当前层不在指定的LoRA层中，则跳过此层。
             if t_layer_i not in self.lora_layer:
                 continue
@@ -138,66 +138,68 @@ class LoRA_Sam(nn.Module):
                 w_a_linear_v,
                 w_b_linear_v,
             )
+        # 将数据维度缩小，防止爆显存
+        self.output_proj = nn.Linear(sam_2d_dim * sam_2d_dim, output_2d_dim_1 * output_2d_dim_0)
         self.reset_parameters()
-        self.sam = sam_model
 
-    def save_lora_parameters(self, filename: str) -> None:
 
-        assert filename.endswith(".pt") or filename.endswith('.pth')
-
-        num_layer = len(self.w_As)
-        # 保存lora的那部分权重
-        a_tensors = {f"w_a_{i:03d}": self.w_As[i].weight for i in range(num_layer)}
-        b_tensors = {f"w_b_{i:03d}": self.w_Bs[i].weight for i in range(num_layer)}
-        prompt_encoder_tensors = {}
-        mask_decoder_tensors = {}
-
-        # save prompt encoder, only `state_dict`, the `named_parameter` is not permitted
-        if isinstance(self.sam, torch.nn.DataParallel) or isinstance(self.sam,
-                                                                     torch.nn.parallel.DistributedDataParallel):
-            state_dict = self.sam.module.state_dict()
-        else:
-            state_dict = self.sam.state_dict()
-        for key, value in state_dict.items():
-            if 'prompt_encoder' in key:
-                prompt_encoder_tensors[key] = value
-            if 'mask_decoder' in key:
-                mask_decoder_tensors[key] = value
-        # 合并lora权重和原始dict
-        merged_dict = {**a_tensors, **b_tensors, **prompt_encoder_tensors, **mask_decoder_tensors}
-        torch.save(merged_dict, filename)
-
-    def load_lora_parameters(self, filename: str) -> None:
-
-        assert filename.endswith(".pt") or filename.endswith('.pth')
-
-        state_dict = torch.load(filename)
-
-        for i, w_A_linear in enumerate(self.w_As):
-            saved_key = f"w_a_{i:03d}"
-            saved_tensor = state_dict[saved_key]
-            w_A_linear.weight = Parameter(saved_tensor)
-
-        for i, w_B_linear in enumerate(self.w_Bs):
-            saved_key = f"w_b_{i:03d}"
-            saved_tensor = state_dict[saved_key]
-            w_B_linear.weight = Parameter(saved_tensor)
-
-        sam_dict = self.sam.state_dict()
-        sam_keys = sam_dict.keys()
-
-        # load prompt encoder
-        prompt_encoder_keys = [k for k in sam_keys if 'prompt_encoder' in k]
-        prompt_encoder_values = [state_dict[k] for k in prompt_encoder_keys]
-        prompt_encoder_new_state_dict = {k: v for k, v in zip(prompt_encoder_keys, prompt_encoder_values)}
-        sam_dict.update(prompt_encoder_new_state_dict)
-
-        # load mask decoder
-        mask_decoder_keys = [k for k in sam_keys if 'mask_decoder' in k]
-        mask_decoder_values = [state_dict[k] for k in mask_decoder_keys]
-        mask_decoder_new_state_dict = {k: v for k, v in zip(mask_decoder_keys, mask_decoder_values)}
-        sam_dict.update(mask_decoder_new_state_dict)
-        self.sam.load_state_dict(sam_dict)
+    # def save_lora_parameters(self, filename: str) -> None:
+    #
+    #     assert filename.endswith(".pt") or filename.endswith('.pth')
+    #
+    #     num_layer = len(self.w_As)
+    #     # 保存lora的那部分权重
+    #     a_tensors = {f"w_a_{i:03d}": self.w_As[i].weight for i in range(num_layer)}
+    #     b_tensors = {f"w_b_{i:03d}": self.w_Bs[i].weight for i in range(num_layer)}
+    #     prompt_encoder_tensors = {}
+    #     mask_decoder_tensors = {}
+    #
+    #     # save prompt encoder, only `state_dict`, the `named_parameter` is not permitted
+    #     if isinstance(self.sam, torch.nn.DataParallel) or isinstance(self.sam,
+    #                                                                  torch.nn.parallel.DistributedDataParallel):
+    #         state_dict = self.sam.module.state_dict()
+    #     else:
+    #         state_dict = self.sam.state_dict()
+    #     for key, value in state_dict.items():
+    #         if 'prompt_encoder' in key:
+    #             prompt_encoder_tensors[key] = value
+    #         if 'mask_decoder' in key:
+    #             mask_decoder_tensors[key] = value
+    #     # 合并lora权重和原始dict
+    #     merged_dict = {**a_tensors, **b_tensors, **prompt_encoder_tensors, **mask_decoder_tensors}
+    #     torch.save(merged_dict, filename)
+    #
+    # def load_lora_parameters(self, filename: str) -> None:
+    #
+    #     assert filename.endswith(".pt") or filename.endswith('.pth')
+    #
+    #     state_dict = torch.load(filename)
+    #
+    #     for i, w_A_linear in enumerate(self.w_As):
+    #         saved_key = f"w_a_{i:03d}"
+    #         saved_tensor = state_dict[saved_key]
+    #         w_A_linear.weight = Parameter(saved_tensor)
+    #
+    #     for i, w_B_linear in enumerate(self.w_Bs):
+    #         saved_key = f"w_b_{i:03d}"
+    #         saved_tensor = state_dict[saved_key]
+    #         w_B_linear.weight = Parameter(saved_tensor)
+    #
+    #     sam_dict = self.sam.state_dict()
+    #     sam_keys = sam_dict.keys()
+    #
+    #     # load prompt encoder
+    #     prompt_encoder_keys = [k for k in sam_keys if 'prompt_encoder' in k]
+    #     prompt_encoder_values = [state_dict[k] for k in prompt_encoder_keys]
+    #     prompt_encoder_new_state_dict = {k: v for k, v in zip(prompt_encoder_keys, prompt_encoder_values)}
+    #     sam_dict.update(prompt_encoder_new_state_dict)
+    #
+    #     # load mask decoder
+    #     mask_decoder_keys = [k for k in sam_keys if 'mask_decoder' in k]
+    #     mask_decoder_values = [state_dict[k] for k in mask_decoder_keys]
+    #     mask_decoder_new_state_dict = {k: v for k, v in zip(mask_decoder_keys, mask_decoder_values)}
+    #     sam_dict.update(mask_decoder_new_state_dict)
+    #     self.sam.load_state_dict(sam_dict)
 
     def reset_parameters(self) -> None:
         for w_A in self.w_As:
@@ -205,15 +207,26 @@ class LoRA_Sam(nn.Module):
         for w_B in self.w_Bs:
             nn.init.zeros_(w_B.weight)
 
-    def forward(self, batched_input, multimask_output, image_size):
-        return self.sam(batched_input, multimask_output, image_size)
+    def forward(self, image):
+        with torch.no_grad():  # 确保不计算梯度
+            resized_image = F.interpolate(image, size=(1024, 1024), mode='bilinear', align_corners=False)
+            image_embedding = self.sam_encoder(resized_image)
+        image_embedding = image_embedding.reshape([-1, self.sam_2d_dim * self.sam_2d_dim])
+        # 4*256 64*64 -> 4*256 15*20
+        image_embedding = self.output_proj(image_embedding)
+        # 4*256 15*20 -> 4 256 15 20
+        image_embedding = image_embedding.reshape([-1, self.num_channels, self.output_2d_dim_1, self.output_2d_dim_0])
+        return image_embedding
 
+def build_sam_lora_encoder(args):
+    model = LoRA_Sam(args["sam"])
+    return model
 
-if __name__ == "__main__":
-    sam = sam_model_registry["vit_b"](checkpoint="sam_vit_b_01ec64.pth")
-    lora_sam = LoRA_Sam(sam, 4)
-    output = lora_sam.sam.image_encoder(torch.rand(size=(1, 3, 1024, 1024)))
-    print(output.size())
+# if __name__ == "__main__":
+#     sam = sam_model_registry["vit_b"](checkpoint="sam_vit_b_01ec64.pth")
+#     lora_sam = LoRA_Sam(sam, 4)
+#     output = lora_sam.sam.image_encoder(torch.rand(size=(1, 3, 1024, 1024)))
+#     print(output.size())
 
 '''
 # 以下是训练好模型之后的保存和加载模型权重进行推理的操作
