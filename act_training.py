@@ -167,33 +167,33 @@ def train_bc(train_dataloader, val_dataloader, config):
     for step in tqdm(range(num_steps+1)):
         # validation
         # 验证
-        # if step % validate_every == 0:
-        #     print('validating')
-        #
-        #     with torch.inference_mode():
-        #         policy.eval()
-        #         validation_dicts = []
-        #         for batch_idx, data in enumerate(val_dataloader):
-        #             forward_dict = policy.forward_pass(data)
-        #             validation_dicts.append(forward_dict)
-        #             if batch_idx > 50:
-        #                 break
-        #
-        #         validation_summary = compute_dict_mean(validation_dicts)
-        #
-        #         epoch_val_loss = validation_summary['loss']
-        #         if epoch_val_loss < min_val_loss:
-        #             min_val_loss = epoch_val_loss
-        #             best_ckpt_info = (step, min_val_loss, deepcopy(policy.serialize()))
-        #     for k in list(validation_summary.keys()):
-        #         validation_summary[f'val_{k}'] = validation_summary.pop(k)
-        #     if use_wandb:
-        #         wandb.log(validation_summary, step=step)
-        #     print(f'Val loss:   {epoch_val_loss:.5f}')
-        #     summary_string = ''
-        #     for k, v in validation_summary.items():
-        #         summary_string += f'{k}: {v.item():.3f} '
-        #     print(summary_string)
+        if step % validate_every == 0:
+            print('validating')
+
+            with torch.inference_mode():
+                policy.eval()
+                validation_dicts = []
+                for batch_idx, data in enumerate(val_dataloader):
+                    forward_dict = policy.forward_pass(data)
+                    validation_dicts.append(forward_dict)
+                    if batch_idx > 50:
+                        break
+
+                validation_summary = compute_dict_mean(validation_dicts)
+
+                epoch_val_loss = validation_summary['loss']
+                if epoch_val_loss < min_val_loss:
+                    min_val_loss = epoch_val_loss
+                    best_ckpt_info = (step, min_val_loss, deepcopy(policy.serialize()))
+            for k in list(validation_summary.keys()):
+                validation_summary[f'val_{k}'] = validation_summary.pop(k)
+            if use_wandb:
+                wandb.log(validation_summary, step=step)
+            print(f'Val loss:   {epoch_val_loss:.5f}')
+            summary_string = ''
+            for k, v in validation_summary.items():
+                summary_string += f'{k}: {v.item():.3f} '
+            print(summary_string)
 
         # training
         # 训练

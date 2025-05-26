@@ -1,4 +1,4 @@
-policy_class: act_sam_policy
+policy_class: act_sam_lora_policy
 task_name: pick_and_lift_small_size
 custom_task: vit_h
 # ------------------ 采样 重现 数据转换 评估 ------------------
@@ -38,7 +38,7 @@ policy:
   policy_class: ${policy_class}
   task_name: ${task_name}
   dataloader_name: act_dataloader
-  model_name: act_sam_model
+  model_name: act_sam_lora_model
   ckpt_dir: training/${policy_class}_${task_name}/100demos_bs1_s4000_${custom_task}
   camera_names:
     - front_camera
@@ -56,6 +56,9 @@ policy:
     output_2d_dim: # 需要对sam的输出维度映射小一点，不这么做会爆显存，注意，这个映射每个视角共用
       dim_1: 15
       dim_0: 20
+    lora:
+      r: 4
+      lora_layer: null
   # -------Eval-------
   episode_len: 250  # 只影响评估
   ckpt_name: 'policy_last.ckpt'
