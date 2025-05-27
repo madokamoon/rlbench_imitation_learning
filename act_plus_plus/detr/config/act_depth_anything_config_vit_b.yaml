@@ -1,0 +1,20 @@
+defaults:
+  - /default   
+
+policy_class: act_depth_anything_policy
+custom_task: vit_b
+
+mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+data_sampler_config:
+  headless: false
+
+
+policy:
+  model_name: act_depth_anything_model
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_${custom_task}
+  depth_anything: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
+    checkpoint:  foundation_ckpt/depth_anything_v2_vitb.pth
+    model_type: vitb
+  use_wandb: false
+  dilation: false  # backbone（图像编码器）的第三次卷积核的膨胀
+
