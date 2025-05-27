@@ -3,6 +3,8 @@ defaults:
 
 mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
 
-
+data_sampler_config:
+  headless: true
+  
 policy:
   ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo
