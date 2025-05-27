@@ -142,6 +142,9 @@ class DETRVAE(nn.Module):
             # Image observation features and position embeddings
             all_cam_features = []
             all_cam_pos = []
+            
+            print(f'权重数值 view_weights: {view_weights}')
+
             for cam_id, cam_name in enumerate(self.camera_names):
                 # 原始骨干网络特征提取
                 features, pos = self.backbones[cam_id](image[:, cam_id])
@@ -149,9 +152,12 @@ class DETRVAE(nn.Module):
                 pos = pos[0]
                 
                 cam_features = self.input_proj(features)
-                
+                # print(f'cam_features shape: {cam_features.shape}')
+                # print(f'cam_features type: {type(cam_features)}')
+                # print(f'view_weights shape: {view_weights.shape}')
+                # print(f'view_weights type: {type(view_weights)}')
                 # 应用视角权重
-                weight = view_weights[:, cam_id:cam_id + 1, None, None]
+                weight = view_weights[:, cam_id].view(-1, 1, 1, 1)
                 cam_features = cam_features * weight
                 
                 all_cam_features.append(cam_features)

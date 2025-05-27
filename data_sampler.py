@@ -659,7 +659,7 @@ class RLBenchProcessor:
                     # formatted_state = [f"{val:8.5f}" for val in robot_state]
                     # print(f"robot_state_:{formatted_state}")
                     robot_state_copy = robot_state.copy()  
-
+                
                     if self.use_weight :
                         view_weights = []
                         if prev_images is not None:

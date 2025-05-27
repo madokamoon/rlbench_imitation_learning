@@ -1,13 +1,18 @@
 defaults:
   - /default   
 
+mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+
 policy_class: act_weight_policy
 
 policy:
   policy_class: ${policy_class}
   dataloader_name: act_weight_dataloader
   model_name: act_weight_model
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_test
-  use_weight: true
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s10000
+  use_weight: true  
   use_wandb: false
- 
+  num_steps: 10000
+  eval_every: 5000
+  validate_every: 5000
+  save_every: 5000

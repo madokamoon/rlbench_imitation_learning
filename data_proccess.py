@@ -20,7 +20,7 @@ from weight.weight import calculate_change_weight
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, weightflag=False):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, use_weight=False):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -30,10 +30,11 @@ class RawToHDF5Converter:
         self.image_width = image_width
         self.image_height = image_height
         self.end_pad = end_pad 
-        self.weightflag = weightflag 
+        self.use_weight = use_weight 
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
+        folders = sorted(folders, key=int)  # 按照数字大小排序
         if not folders:
             print("输入路径下没有文件夹")
             return
@@ -75,20 +76,24 @@ class RawToHDF5Converter:
         try:
             folder_path = os.path.join(self.input_path, folder_name)
             
-            # 为每个线程创建独立的数据结构
+
             local_datas = {}
-            local_camera_names = []
+            local_camera_names = []  # 需要转换的相机
+            local_mask_names = []
+            local_rgb_names = []
+            local_depth_names = []
             local_prev_frames = {}
 
             for f in os.listdir(folder_path):
                 if os.path.isdir(os.path.join(folder_path, f)):
                     if f.endswith('depth'):
-                        # pass # 不转换深度图像
+                        local_depth_names.append(f)
                         local_camera_names.append(f)
                     elif f.endswith('mask'):
-                        # pass # 不转换mask图像
+                        local_mask_names.append(f)
                         local_camera_names.append(f)
                     elif f.endswith('camera'):
+                        local_rgb_names.append(f)
                         local_camera_names.append(f)
                         
             # 初始化数据字典
@@ -164,47 +169,32 @@ class RawToHDF5Converter:
                     local_datas[f'/observations/images/{cam_name}'].append(img_array)
                     
                     # 计算权重（与前一帧比较）
-                    if self.weightflag:
-                        if frame_idx > 0 and cam_name in local_prev_frames:
-                            # 计算当前帧与前一帧的变化权重
+                    if self.use_weight and cam_name.endswith('mask'):
+                        if frame_idx > 0 :
                             weight = calculate_change_weight(local_prev_frames[cam_name], img_array)
                         else:
-                            # 第一帧或无前一帧数据时，设置默认权重1.0
                             weight = 1.0
+                        local_prev_frames[cam_name] = img_array.copy()
                     else:
-                        # 如果weightflag为False，直接设置权重为1.0
                         weight = 1.0
                     
-                    # 暂存权重
                     frame_weights[cam_name] = weight
                     
-                    # 更新前一帧图像
-                    local_prev_frames[cam_name] = img_array.copy()
                 
-                # 归一化权重，确保所有摄像头的平均权重为1
-                if frame_weights:
-                    # 将摄像头分为两组
-                    mask_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('mask')}
-                    camera_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('camera')}
-                    
-                    # 处理mask摄像头的权重 - 进行归一化
-                    if mask_cams:
-                        total_mask_weight = sum(mask_cams.values())
-                        mask_count = len(mask_cams)
-                        
-                        if total_mask_weight > 0:  # 避免除以零
-                            # 归一化公式：weight * 摄像头数量 / 总权重
-                            for cam_name, weight in mask_cams.items():
-                                norm_weight = weight * mask_count / total_mask_weight
-                                local_datas[f'/observations/weight/{cam_name}'].append(norm_weight)
-                        else:
-                            # 如果总权重为零，所有mask摄像头权重设为1
-                            for cam_name in mask_cams:
-                                local_datas[f'/observations/weight/{cam_name}'].append(1.0)
-
-                    # 处理camera摄像头的权重 - 全部设置为1
-                    for cam_name in camera_cams:
+                # 归一化权重，确保所有同类摄像头的平均权重为1
+                mask_cams = {cam: weight for cam, weight in frame_weights.items() if cam.endswith('mask')}
+                total_mask_weight = sum(mask_cams.values())
+                mask_count = len(mask_cams)
+                
+                if total_mask_weight > 0:  # 避免除以零
+                    for cam_name, weight in mask_cams.items():
+                        norm_weight = weight * mask_count / total_mask_weight
+                        local_datas[f'/observations/weight/{cam_name}'].append(norm_weight)
+                else:
+                    print(f"警告: 文件夹 {folder_name} 中的mask摄像头权重总和为0，使用默认权重1.0")
+                    for cam_name in mask_cams:
                         local_datas[f'/observations/weight/{cam_name}'].append(1.0)
+            
             
             # 如果启用了 end_pad，并且当前序列长度小于最大序列长度，则进行填充
             current_length = len(local_datas['/action'])
@@ -260,13 +250,19 @@ class RawToHDF5Converter:
             for cam_name in camera_names:
                 if cam_name.endswith('depth'):
                     _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width), 
-                        dtype='uint8', chunks=(1, self.image_height, self.image_width)) 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width), 
+                        # compression='gzip', compression_opts=2, shuffle=True)
+                        )
                 elif cam_name.endswith('mask'):
                     _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
-                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
+                        # compression='gzip', compression_opts=2, shuffle=True)
+                        )
                 elif cam_name.endswith('camera'):
                     _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
-                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3)) 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
+                        # compression='gzip', compression_opts=2, shuffle=True)
+                        )
 
 
             # 创建权重组
@@ -308,6 +304,7 @@ class RawToHDF5Converter:
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
 
+
     data_proccess_config = cfg["data_proccess_config"]
     save_path_head = data_proccess_config['save_path_head']
     save_path_end = data_proccess_config['save_path_end']
@@ -316,7 +313,7 @@ def main(cfg: OmegaConf):
     image_height = data_proccess_config['image_height']
     end_pad = data_proccess_config['end_pad']
     max_workers = data_proccess_config['threads']
-    weightflag = data_proccess_config['weightflag']
+    use_weight = data_proccess_config['use_weight']
 
     # 保存路径
     task_path = os.path.join(save_path_head, taskname)
@@ -356,7 +353,7 @@ def main(cfg: OmegaConf):
                                    image_width=image_width,
                                    image_height=image_height,
                                    end_pad=end_pad,
-                                   weightflag=weightflag)
+                                   use_weight=use_weight)
 
     # 如果未指定线程数，使用处理器核心数
     if max_workers is None:
