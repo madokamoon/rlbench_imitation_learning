@@ -27,7 +27,7 @@ from act_policy_wrapper import ACTPolicyWrapper
 from pyrep.backend import sim
 
 
-from myutils import normalize_quaternion
+from tools.myutils import normalize_quaternion
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
