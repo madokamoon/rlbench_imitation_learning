@@ -1,0 +1,12 @@
+defaults:
+  - /default   
+  - /act_depth_anything_config_vit_b   
+
+
+custom_task: vit_s
+policy:
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_${custom_task}
+  depth_anything: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
+    checkpoint:  foundation_ckpt/depth_anything_v2_vits.pth
+    model_type: vits
+
