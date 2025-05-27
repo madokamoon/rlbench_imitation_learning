@@ -1,0 +1,11 @@
+defaults:
+  - /default
+  - /act_sam_config_vit_h   
+
+custom_task: vit_l
+
+policy:
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_${custom_task}
+  sam: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
+    sam_checkpoint:  foundation_ckpt/sam_vit_l_0b3195.pth
+    model_type: vit_l
