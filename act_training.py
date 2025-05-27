@@ -143,7 +143,6 @@ def train_bc(train_dataloader, val_dataloader, config):
     use_wandb = policy_config['use_wandb']
     load_pretrain = policy_config['load_pretrain']
     resume_ckpt_path = policy_config['resume_ckpt_path']
-    use_weight = policy_config['use_weight']
 
     set_seed(seed)
 

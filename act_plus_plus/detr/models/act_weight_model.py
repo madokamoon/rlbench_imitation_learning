@@ -133,7 +133,6 @@ class DETRVAE(nn.Module):
         image: batch, num_cam, channel, height, width
         env_state: None
         actions: batch, seq, action_dim
-        view_weights: 各视角的权重，shape为[num_cameras]
         """
         latent_input, probs, binaries, mu, logvar = self.encode(qpos, actions, is_pad, vq_sample)
 
@@ -157,9 +156,12 @@ class DETRVAE(nn.Module):
                 # print(f'view_weights shape: {view_weights.shape}')
                 # print(f'view_weights type: {type(view_weights)}')
                 # 应用视角权重
-                weight = view_weights[:, cam_id].view(-1, 1, 1, 1)
-                cam_features = cam_features * weight
-                
+                if view_weights is not None:
+                    weight = view_weights[:, cam_id].view(-1, 1, 1, 1)
+                    cam_features = cam_features * weight
+                else:
+                    print("view_weights is None!")
+                    
                 all_cam_features.append(cam_features)
                 all_cam_pos.append(pos)
             

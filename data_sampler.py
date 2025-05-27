@@ -656,8 +656,8 @@ class RLBenchProcessor:
                     current_steps = step + 1  # 更新当前步骤数
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
-                    # formatted_state = [f"{val:8.5f}" for val in robot_state]
-                    # print(f"robot_state_:{formatted_state}")
+                    formatted_state = [f"{val:8.5f}" for val in robot_state]
+                    print(f"robot_state_:{formatted_state}")
                     robot_state_copy = robot_state.copy()  
                 
                     if self.use_weight :
@@ -679,7 +679,7 @@ class RLBenchProcessor:
                             print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
                             actaction,costtime = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
                         else:
-                            print("没有上一帧图像，使用默认权重")
+                            print("没有上一帧图像")
                             actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
                             
                         # 保存当前帧作为下一次迭代的上一帧
@@ -696,14 +696,13 @@ class RLBenchProcessor:
 
                     # 模型输出处理
                     position = actaction[0:3]
-                    
                     quat = normalize_quaternion(actaction[3:7])
                     gripper_joint_position = float(actaction[7] > 0.5)
                     # 动作执行
                     try:
                         action = np.concatenate([position, quat, [gripper_joint_position]]).astype(np.float32)
-                        # formatted_action = [f"{val:8.5f}" for val in action]
-                        # print(f"robot_action:{formatted_action}")
+                        formatted_action = [f"{val:8.5f}" for val in action]
+                        print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
                         low_dim_state = self.task._task.get_low_dim_state()
                         all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))

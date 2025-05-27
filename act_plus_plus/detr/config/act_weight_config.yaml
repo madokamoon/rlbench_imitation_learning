@@ -9,10 +9,12 @@ policy:
   policy_class: ${policy_class}
   dataloader_name: act_weight_dataloader
   model_name: act_weight_model
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s10000
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000
   use_weight: true  
   use_wandb: false
-  num_steps: 10000
-  eval_every: 5000
-  validate_every: 5000
-  save_every: 5000
+  num_steps: 2000
+  eval_every: 2000
+  validate_every: 2000
+  save_every: 2000
+  show_3D_state: true
+  
