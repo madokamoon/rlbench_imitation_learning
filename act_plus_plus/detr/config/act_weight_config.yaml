@@ -1,106 +1,13 @@
+defaults:
+  - /default   
+
 policy_class: act_weight_policy
-task_name: pick_and_lift_small_size
 
-# ------------------ 采样 重现 数据转换 评估 ------------------
-mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
-data_sampler_config:
-  save_path_head: 'data' # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
-  taskname: ${task_name}
-  save_path_end: '100demos'
-  num_demos: 100
-  image:
-    width: 640
-    height: 480
-  cameras:
-    - 'front_camera'
-    - 'wrist_camera'
-    # - 'left_shoulder_camera'
-    # - 'right_shoulder_camera'
-    - 'overhead_camera'
-  # 启用后所有demo的初始物体位置一样
-  static_positions: false
-  headless: false
-  robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
-
-# ------------------ 数据转换 ------------------
-data_proccess_config:
-  save_path_head: ${data_sampler_config.save_path_head}
-  save_path_end: ${data_sampler_config.save_path_end} #如果收集时候留空了，这里要正确填写时间戳
-  taskname: ${task_name}
-  image_width: ${data_sampler_config.image.width}
-  image_height: ${data_sampler_config.image.height}
-  end_pad: true # 开启后，数据集长度不一致的demo会被填充到相同长度，填充使用最后一帧数据
-  threads: 8 # 并行处理的线程数
-  weightflag: false 
-
-# ------------------ 训练 评估 ------------------
 policy:
-  # -------** 通用 **-------
   policy_class: ${policy_class}
-  task_name: ${task_name}
-  dataloader_name: act_weight_dataloader
-  model_name: act_weight_model
-  ckpt_dir: training/${policy_class}_${task_name}/20demos_hdf5_4_4000_fwo
-  camera_names:
-    - front_camera
-    - wrist_camera
-    - overhead_camera
-  eval: false
-  ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
-  use_weight: false
-  onscreen_render: false
-  # -------Eval-------
-  episode_len: 250  # 只影响评估
-  ckpt_name: 'policy_last.ckpt'
-  show_3D_state: false
-  temporal_agg: false
-  real_robot: false
-  # -------Training-------
-  ## ** 基础设置 **
-  dataset_dir: data/${task_name}/100demos_hdf5
+  dataloader_name: act_dataloader
+  model_name: act_model
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_test
+  use_weight: true
   use_wandb: false
-  wandb_project_name: ${task_name}
-  batch_size: 4
-  seed: 0
-  num_steps: 4000
-  train_ratio: 0.99
-  ## 网络架构设置
-  state_dim: 8
-  action_dim: ${eval:'${policy.state_dim} + 2'}
-  backbone: 'resnet18'
-  enc_layers: 4 # CVAE decoder transformer的encoder层数
-  dec_layers: 7 # CVAE decoder transformer的decoder层数
-  nheads: 8 # CVAE decoder transformer的头数
-  ## 预训练
-  load_pretrain: False
-  resume_ckpt_path: null #建议使用这个
-  ## 输出设置
-  eval_every: 1000
-  validate_every: 1000
-  save_every: 1000
-  ## 不知道有啥用但是保留了
-  skip_mirrored_data: false
-  actuator_network_dir: null
-  history_len: null
-  future_len: null
-  prediction_len: null
-  ## 模型设置
-  kl_weight: 10 # 求总loss = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight的编码器预测权重
-  chunk_size: 50 # 动作块长度
-  hidden_dim: 512 # 各种训练数据的特征会被投影成这个维度再进行后续处理
-  dim_feedforward: 3200 # CVAE encoder的第一层layer输出的特征维度
-  no_encoder: False # CVAE encoder 是否使用
-  lr: 0.00001
-  lr_backbone: 1e-5
-  weight_decay: 1e-4
-  dilation: false # backbone（图像编码器）的第三次卷积核的膨胀
-  position_embedding: sine # choices=('sine', 'learned')
-  dropout: 0.1
-  num_queries: ${policy.chunk_size}
-  pre_norm: false
-  masks: false # backbone（图像编码器）是否返回中间层的输出
-  ### VQVAE 没啥用
-  use_vq: false
-  vq: ${policy.use_vq}
-  vq_class: null
-  vq_dim: null
+ 

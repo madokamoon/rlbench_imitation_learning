@@ -598,7 +598,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=20):
+    def act_eval(self, max_attempts=50):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -748,31 +748,43 @@ class RLBenchProcessor:
 
             avg_min_grapper_object_dis = sum(min_grapper_object_dis) / len(min_grapper_object_dis) 
             avg_min_object_target_dis = sum(min_object_target_dis) / len(min_object_target_dis)
-            avg_costtime = sum(costtime_list) / len(costtime_list) if costtime_list else 0
+            avg_costtime = sum(costtime_list) / len(costtime_list)
 
-            # 将结果格式化为字符串
-            result_str = f"**{self.act_policy.ckpt_path}**\n"
-            result_str += f"- 时间: {datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}\n"
-            result_str += f"- 聚合模式: {self.act_policy.temporal_agg}\n"
-            result_str += f"- 最大步数: {self.max_steps}\n"
-            result_str += f"- 总尝试次数: {attempt}\n"
-            result_str += f"- 成功率: {success_rate:.2%}\n"
-            result_str += f"- 错误率: {error_rate:.2%}\n"
-            result_str += f"- 平均步骤数: {avg_all_steps:.2f}\n"
-            result_str += f"- 平均成功步骤数: {average_success_steps:.2f}\n"
-            result_str += f"- 平均最小夹爪物体距离: {avg_min_grapper_object_dis*100:.5f} cm\n"
-            result_str += f"- 平均最小物体终点距离: {avg_min_object_target_dis*100:.5f} cm\n"
-            result_str += f"- 平均推理耗时: {avg_costtime:.5f} 秒"
+            # 将结果保存为CSV格式
+            import csv
+            csv_path = "eval_results.csv"
+            file_exists = os.path.isfile(csv_path)
             
-            # 打印结果
-            print(result_str)
+            # 准备CSV行数据
+            row_data = {
+                "policy_class": self.act_policy.policy_class,
+                "task_name": self.act_policy.task_name,
+                "ckpt_name": self.act_policy.ckpt_name,
+                "checkpoint_path": self.act_policy.ckpt_path,
+                "time": datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
+                "temporal_agg": self.act_policy.temporal_agg,
+                "max_steps": self.max_steps,
+                "attempts": attempt,
+                "success_rate": success_rate,
+                "error_rate": error_rate,
+                "avg_steps": avg_all_steps,
+                "avg_success_steps": average_success_steps,
+                "avg_min_g_o_dis_m": avg_min_grapper_object_dis,
+                "avg_min_o_t_dis_m": avg_min_object_target_dis,
+                "avg_inference_time": avg_costtime,
+            }
+            for item in row_data.items():
+                pprint(f"评估结果: {item}")
+            # 写入CSV
+            with open(csv_path, mode='a', newline='', encoding='utf-8') as csv_file:
+                fieldnames = list(row_data.keys())
+                
+                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerow(row_data)
             
-            # 将结果写入文件
-            eval_result_path = "eval_result.md"
-            with open(eval_result_path, 'a', encoding='utf-8') as f:
-                f.write(result_str + "\n\n")
-            
-            print(f"评估结果已保存到: {eval_result_path}")
+            print(f"评估结果已保存到: {csv_path}")
 
 
         except Exception as e:
@@ -852,20 +864,11 @@ class RLBenchProcessor:
 @hydra.main(
     version_base=None,
     config_path=str(pathlib.Path(__file__).parent.joinpath(
-        'act_plus_plus', 'detr', 'config'))
+        'act_plus_plus', 'detr', 'config')),
+    config_name="default"
 )
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
-
-    if cfg == {}:
-        print("没有提供配置，使用默认配置")
-        if os.path.exists('data_sampler_local.yaml'):
-            with open('data_sampler_local.yaml', 'r') as f:
-                cfg = yaml.safe_load(f)
-        else:
-            with open('data_sampler.yaml', 'r') as f:
-                cfg = yaml.safe_load(f)
-
     processor = RLBenchProcessor(cfg)
     processor.run()
 

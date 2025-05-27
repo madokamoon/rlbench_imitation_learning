@@ -24,6 +24,8 @@ e = IPython.embed
     config_path=str(pathlib.Path(__file__).parent.joinpath(
         'act_plus_plus', 'detr', 'config'))
 )
+
+
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
     # 主函数，处理命令行参数并执行训练或评估

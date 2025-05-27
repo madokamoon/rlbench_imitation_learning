@@ -10,6 +10,7 @@ data_local
 data
 config_local
 data_sampler_local.yaml
+local_config
 
 **/.DS_Store
 

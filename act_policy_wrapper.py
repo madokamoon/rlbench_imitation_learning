@@ -57,6 +57,10 @@ class ACTPolicyWrapper:
 
         # self参数    
         self.ckpt_path = ckpt_path
+        self.task_name = args['task_name']
+        self.policy_class = args['policy_class']   
+        self.ckpt_name = args['ckpt_name']
+        # self参数 
         self.pre_process = lambda s_qpos: (s_qpos - stats['qpos_mean']) / stats['qpos_std']
         self.post_process = lambda a: a * stats['action_std'] + stats['action_mean']
         self.show_3D_state = args['show_3D_state']
@@ -138,8 +142,10 @@ class ACTPolicyWrapper:
 
             if self.step == 0:
                 # warm up
+                time2= time.time()
                 for _ in range(10):
                     self.policy(qpos, curr_image)
+                time3 = time.time()
 
             if self.step % self.query_frequency == 0:
                 if view_weights is not None:
@@ -252,8 +258,11 @@ class ACTPolicyWrapper:
         
             time_end = time.time()
 
-            if self.step % self.query_frequency == 0 and self.step != 0:
-                costtime = time_end - time_start
+            if self.step % self.query_frequency == 0 :
+                if self.step == 0:
+                    costtime = (time_end - time3) + (time2 - time_start)
+                else:
+                    costtime = time_end - time_start
             else:
                 costtime = None
 
