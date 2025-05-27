@@ -11,7 +11,7 @@ data_sampler_config:
     # - overhead_camera
 
 policy:
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_f_test
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_f
   camera_names:
     - front_camera
     # - wrist_camera
