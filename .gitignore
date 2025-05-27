@@ -1,33 +1,22 @@
 bin
 logs
 wandb
-_wandb
 outputs
 data
 training
-data_local
+foundation_ckpt
+
 .vscode
-data
-config_local
-data_sampler_local.yaml
-local_config
-index.html
-/foundation_ckpt/
+.idea/
 
 
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
 **/.DS_Store
 fuse.cfg
 *.ai
-# Generation results
-results/
-ray/auth.json
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-.idea/
-
 # C extensions
 *.so
 
