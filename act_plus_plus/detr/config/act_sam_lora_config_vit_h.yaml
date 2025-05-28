@@ -1,16 +1,17 @@
 defaults:
   - /default   
 
-policy_class: act_sam_policy
+policy_class: act_sam_lora_policy
 custom_task: vit_h
 
 mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+
 data_sampler_config:
   headless: true
 
 policy:
-  model_name: act_sam_model
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs4_s4000_${custom_task}
+  model_name: act_sam_lora_model
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs1_s4000_${custom_task}
   sam: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
     sam_checkpoint:  foundation_ckpt/sam_vit_h_4b8939.pth
     model_type: vit_h
@@ -19,6 +20,9 @@ policy:
     output_2d_dim: # 需要对sam的输出维度映射小一点，不这么做会爆显存，注意，这个映射每个视角共用
       dim_1: 15
       dim_0: 20
+    lora:
+      r: 4
+      lora_layer: null
   use_wandb: false
   wandb_project_name: ${task_name}_${custom_task}
   batch_size: 1

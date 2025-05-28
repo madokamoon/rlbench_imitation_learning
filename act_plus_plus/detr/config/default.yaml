@@ -44,6 +44,8 @@ policy:
   camera_names:
     - front_camera
     - wrist_camera
+    # - 'left_shoulder_camera'
+    # - 'right_shoulder_camera'
     - overhead_camera
   eval: false
   ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
