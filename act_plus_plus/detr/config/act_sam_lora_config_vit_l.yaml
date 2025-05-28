@@ -9,3 +9,4 @@ policy:
   sam: # sam的输出维度为 bs sam_feature_dim sam_2d_dim sam_2d_dim
     sam_checkpoint:  foundation_ckpt/sam_vit_l_0b3195.pth
     model_type: vit_l
+  wandb_project_name: ${task_name}_${custom_task}
