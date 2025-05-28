@@ -212,7 +212,7 @@ class RLBenchProcessor:
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=self.headless,
-            static_positions = True
+            static_positions = False
         )
             
         # 使用sim模块直接设置物理引擎参数 
