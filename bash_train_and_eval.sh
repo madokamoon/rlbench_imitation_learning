@@ -2,7 +2,7 @@
 
 configs=(
     
-    # "act_config_f.yaml"    
+    "act_config_f.yaml"    
     # "act_config_o.yaml"   
     # "act_config_w.yaml"  
     # "act_config_fwo.yaml" 
@@ -14,7 +14,7 @@ configs=(
     # "act_weight_config.yaml"
 
     # "act_depth_anything_config_vit_b.yaml"
-    "act_depth_anything_config_vit_s.yaml"
+    # "act_depth_anything_config_vit_s.yaml"
 )
 
 for i in "${!configs[@]}"; do
