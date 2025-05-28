@@ -598,7 +598,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=2):
+    def act_eval(self, max_attempts=50):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -704,10 +704,18 @@ class RLBenchProcessor:
                         formatted_action = [f"{val:8.5f}" for val in action]
                         print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
-                        low_dim_state = self.task._task.get_low_dim_state()
-                        all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
-                        all_frame_data['object_target_dis'].append(np.linalg.norm(low_dim_state[0:3] - low_dim_state[3:6] ))
 
+
+                        if self.taskname == "pick_and_lift_small_size":
+                            low_dim_state = self.task._task.get_low_dim_state()
+                            print(f"low_dim_state: {low_dim_state}")
+                            all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
+                            all_frame_data['object_target_dis'].append(np.linalg.norm(low_dim_state[0:3] - low_dim_state[3:6] ))
+                        else:
+                            low_dim_state = self.task._task.target_button.get_position()
+                            print(f"low_dim_state: {low_dim_state}")
+                            all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
+                            all_frame_data['object_target_dis'].append(1.0)
                         # 检查任务状态
                         if reward == 1.0:
                             success_in_this_attempt = True

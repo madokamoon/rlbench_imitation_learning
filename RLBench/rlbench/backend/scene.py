@@ -529,23 +529,23 @@ class Scene(object):
     def _place_task(self) -> None:
         self._workspace_boundary.clear()
 
-        # ----------------------修改随机范围------------------------
+        # rlbench修改随机范围
         # 重新初始化 self.boundary._boundaries  
         # 重新计算 self.boundary._probabilities
-        from rlbench.backend.spawn_boundary import BoundingBox
-        areas= []
-        for bo in self._workspace_boundary._boundaries:
-            # print('原始的_boundary_bbox:', bo._boundary.get_bounding_box())
-            minx, maxx, miny, maxy, minz, maxz = [-0.16, 0.16, -0.22, 0.22, -0.0, 0.0]
-            bo._boundary_bbox = BoundingBox(minx, maxx, miny, maxy, minz, maxz)
-            height = np.abs(maxz - minz)
-            if height == 0:
-                height = 1.0
-                bo._is_plane = True
-            bo._area = np.abs(maxx - minx) * np.abs(maxy - miny) * height
-            # print('修改_area:', bo._boundary_bbox)
-            areas.append(bo.get_area())
-        self._workspace_boundary._probabilities = np.array(areas) / np.sum(areas)
+        # from rlbench.backend.spawn_boundary import BoundingBox
+        # areas= []
+        # for bo in self._workspace_boundary._boundaries:
+        #     # print('原始的_boundary_bbox:', bo._boundary.get_bounding_box())
+        #     minx, maxx, miny, maxy, minz, maxz = [-0.16, 0.16, -0.22, 0.22, -0.0, 0.0]
+        #     bo._boundary_bbox = BoundingBox(minx, maxx, miny, maxy, minz, maxz)
+        #     height = np.abs(maxz - minz)
+        #     if height == 0:
+        #         height = 1.0
+        #         bo._is_plane = True
+        #     bo._area = np.abs(maxx - minx) * np.abs(maxy - miny) * height
+        #     # print('修改_area:', bo._boundary_bbox)
+        #     areas.append(bo.get_area())
+        # self._workspace_boundary._probabilities = np.array(areas) / np.sum(areas)
 
         # ----------------------增加的内容------------------------
 

@@ -35,12 +35,11 @@ coppeliaSim.sh
 启用一个IL算法conda环境，无python版本要求，这里启用下面创建的 rlact
 ```
 conda activate rlact
-```
-使用pip安装到`site-packages`，并非安装本项目的RLbench文件夹
+cd RLBench
+pip install -e .
 
-本项目的RLbench文件夹无用，仅方便参考
-```
-pip install git+https://github.com/stepjam/RLBench.git
+# 不需要 pip install git+https://github.com/stepjam/RLBench.git
+
 ```
 测试
 ```
