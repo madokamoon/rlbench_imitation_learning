@@ -598,7 +598,7 @@ class RLBenchProcessor:
                 return None
 
 
-    def act_eval(self, max_attempts=50):
+    def act_eval(self, max_attempts=2):
         """
         执行指定任务，失败时自动重试，并统计成功率和平均步骤数
         
@@ -759,18 +759,18 @@ class RLBenchProcessor:
                 "policy_class": self.act_policy.policy_class,
                 "task_name": self.act_policy.task_name,
                 "ckpt_name": self.act_policy.ckpt_name,
-                "checkpoint_path": self.act_policy.ckpt_path,
+                "checkpoint_path": pathlib.Path(self.act_policy.ckpt_path).parent.name,
                 "time": datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
                 "temporal_agg": self.act_policy.temporal_agg,
                 "max_steps": self.max_steps,
                 "attempts": attempt,
-                "success_rate": success_rate,
-                "error_rate": error_rate,
-                "avg_steps": avg_all_steps,
-                "avg_success_steps": average_success_steps,
-                "avg_min_g_o_dis_m": avg_min_grapper_object_dis,
-                "avg_min_o_t_dis_m": avg_min_object_target_dis,
-                "avg_inference_time": avg_costtime
+                "success_rate": round(success_rate,3),
+                "error_rate": round(error_rate,3),
+                "avg_steps": round(avg_all_steps),
+                "avg_success_steps": round(average_success_steps),
+                "avg_min_g_o_dis_m": round(avg_min_grapper_object_dis, 3),
+                "avg_min_o_t_dis_m": round(avg_min_object_target_dis, 3),
+                "avg_inference_time": round(avg_costtime, 3)
             }
             for item in row_data.items():
                 pprint(f"评估结果: {item}")
