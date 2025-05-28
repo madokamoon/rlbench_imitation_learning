@@ -770,7 +770,7 @@ class RLBenchProcessor:
                 "avg_success_steps": round(average_success_steps),
                 "avg_min_g_o_dis_m": round(avg_min_grapper_object_dis, 3),
                 "avg_min_o_t_dis_m": round(avg_min_object_target_dis, 3),
-                "avg_inference_time": round(avg_costtime, 4)
+                "avg_inference_time": round(avg_costtime, 3)
             }
             for item in row_data.items():
                 pprint(f"评估结果: {item}")
