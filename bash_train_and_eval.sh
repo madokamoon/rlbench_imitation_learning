@@ -33,7 +33,7 @@ for i in "${!configs[@]}"; do
 
     config=${configs[$i]}
 
-    # python act_training.py --config-name="$config"
+    python act_training.py --config-name="$config"
     python data_sampler.py --config-name="$config"
     
 

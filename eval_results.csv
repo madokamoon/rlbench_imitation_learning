@@ -13,4 +13,10 @@ act_sam_lora_policy,pick_and_lift_small_size,policy_last.ckpt,100demos_bs1_s4000
 act_sam_policy,pick_and_lift_small_size,policy_last.ckpt,100demos_bs4_s4000_vit_h,2025-05-28-08-19-24,False,250,50,0.0,0.0,250.0,0,0.125,0.262,1.210
 act_sam_policy,pick_and_lift_small_size,policy_last.ckpt,100demos_bs4_s4000_vit_l,2025-05-28-10-32-03,False,250,50,0.02,0.0,246.9,95.0,0.121,0.260,0.702
 act_depth_anything_policy,pick_and_lift_small_size,policy_last.ckpt,100demos_bs4_s4000_vit_b,2025-05-28-12-28-39,False,250,50,0.0,0.26,203.78,0,0.130,0.261,0.129
-act_policy,pick_and_lift_small_size,policy_last.ckpt,100demos_8_50_10000_f,2025-05-28-13-46-33,False,250,2,0.0,1.0,52,0,0.02,0.3,0.014act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_f,2025-05-28-22-39-46,False,100,50,0.92,0.08,60,59,0.03,1.0,0.028
+
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_fwo,2025-05-29-02-32-46,False,100,50,0.42,0.54,67,60,0.057,1.0,0.038
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_f,2025-05-29-02-58-26,False,100,50,0.54,0.46,65,64,0.051,1.0,0.024
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_o,2025-05-29-03-25-27,False,100,50,0.34,0.64,67,54,0.099,1.0,0.024
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_w,2025-05-29-04-00-01,False,100,50,0.46,0.52,66,57,0.059,1.0,0.026
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_l,2025-05-29-04-27-58,False,100,50,0.18,0.64,75,60,0.087,1.0,0.026
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_r,2025-05-29-04-53-59,False,100,50,0.22,0.78,61,56,0.07,1.0,0.022

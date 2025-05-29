@@ -4,13 +4,13 @@ defaults:
 mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
 
 data_sampler_config:
-  # headless: true
+  headless: true
   cameras:
     - right_shoulder_camera
 
 
 policy:
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_f
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_r
   camera_names:
     - right_shoulder_camera
   batch_size: 8
