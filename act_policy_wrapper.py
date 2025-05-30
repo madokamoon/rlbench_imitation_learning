@@ -64,6 +64,7 @@ class ACTPolicyWrapper:
         self.pre_process = lambda s_qpos: (s_qpos - stats['qpos_mean']) / stats['qpos_std']
         self.post_process = lambda a: a * stats['action_std'] + stats['action_mean']
         self.show_3D_state = args['show_3D_state']
+        self.show_transform_attention = args['show_transform_attention']
         self.temporal_agg = args['temporal_agg']
         self.camera_names = args['camera_names']
         self.query_frequency = args['num_queries']
@@ -149,9 +150,9 @@ class ACTPolicyWrapper:
 
             if self.step % self.query_frequency == 0:
                 if view_weights is not None:
-                    self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights)
+                    self.all_actions = self.policy(qpos, curr_image, view_weights=view_weights, show_attn_weights=self.show_transform_attention)
                 else:
-                    self.all_actions = self.policy(qpos, curr_image)
+                    self.all_actions = self.policy(qpos, curr_image, show_attn_weights=self.show_transform_attention)
 
                 if self.show_3D_state:
                     # ------------------------------绘制---------------------------------

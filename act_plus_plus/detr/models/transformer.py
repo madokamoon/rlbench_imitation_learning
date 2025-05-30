@@ -71,10 +71,10 @@ class Transformer(nn.Module):
 
         tgt = torch.zeros_like(query_embed)
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
-        hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
+        hs,all_attn_weights = self.decoder(tgt, memory, memory_key_padding_mask=mask,
                           pos=pos_embed, query_pos=query_embed)
         hs = hs.transpose(1, 2)
-        return hs
+        return hs,all_attn_weights
 
 class TransformerEncoder(nn.Module):
 
@@ -117,18 +117,17 @@ class TransformerDecoder(nn.Module):
                 pos: Optional[Tensor] = None,
                 query_pos: Optional[Tensor] = None):
         output = tgt
-
+        all_attn_weights = []  # 存储所有层的注意力权重
         intermediate = []
-
         for layer in self.layers:
-            output = layer(output, memory, tgt_mask=tgt_mask,
+            output, attn_weights = layer(output, memory, tgt_mask=tgt_mask,
                            memory_mask=memory_mask,
                            tgt_key_padding_mask=tgt_key_padding_mask,
                            memory_key_padding_mask=memory_key_padding_mask,
                            pos=pos, query_pos=query_pos)
+            all_attn_weights.append(attn_weights)
             if self.return_intermediate:
                 intermediate.append(self.norm(output))
-
         if self.norm is not None:
             output = self.norm(output)
             if self.return_intermediate:
@@ -136,9 +135,9 @@ class TransformerDecoder(nn.Module):
                 intermediate.append(output)
 
         if self.return_intermediate:
-            return torch.stack(intermediate)
+            return torch.stack(intermediate), all_attn_weights
 
-        return output.unsqueeze(0)
+        return output.unsqueeze(0), all_attn_weights
 
 
 class TransformerEncoderLayer(nn.Module):
@@ -238,16 +237,24 @@ class TransformerDecoderLayer(nn.Module):
                               key_padding_mask=tgt_key_padding_mask)[0]
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
-        tgt2 = self.multihead_attn(query=self.with_pos_embed(tgt, query_pos),
-                                   key=self.with_pos_embed(memory, pos),
-                                   value=memory, attn_mask=memory_mask,
-                                   key_padding_mask=memory_key_padding_mask)[0]
+        # 修改
+        # tgt2 = self.multihead_attn(query=self.with_pos_embed(tgt, query_pos),
+        #                            key=self.with_pos_embed(memory, pos),
+        #                            value=memory, attn_mask=memory_mask,
+        #                            key_padding_mask=memory_key_padding_mask)[0]
+        tgt2, attn_weights = self.multihead_attn(
+            query=self.with_pos_embed(tgt, query_pos),
+            key=self.with_pos_embed(memory, pos),
+            value=memory, attn_mask=memory_mask,
+            key_padding_mask=memory_key_padding_mask,
+            need_weights=True)  # 设置need_weights=True
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
         tgt = tgt + self.dropout3(tgt2)
         tgt = self.norm3(tgt)
-        return tgt
+        # 修改
+        return tgt, attn_weights
 
     def forward_pre(self, tgt, memory,
                     tgt_mask: Optional[Tensor] = None,
@@ -262,15 +269,19 @@ class TransformerDecoderLayer(nn.Module):
                               key_padding_mask=tgt_key_padding_mask)[0]
         tgt = tgt + self.dropout1(tgt2)
         tgt2 = self.norm2(tgt)
-        tgt2 = self.multihead_attn(query=self.with_pos_embed(tgt2, query_pos),
-                                   key=self.with_pos_embed(memory, pos),
-                                   value=memory, attn_mask=memory_mask,
-                                   key_padding_mask=memory_key_padding_mask)[0]
+        # 修改
+        tgt2, attn_weights = self.multihead_attn(
+            query=self.with_pos_embed(tgt2, query_pos),
+            key=self.with_pos_embed(memory, pos),
+            value=memory, attn_mask=memory_mask,
+            key_padding_mask=memory_key_padding_mask,
+            need_weights=True)  # 设置need_weights=True
         tgt = tgt + self.dropout2(tgt2)
         tgt2 = self.norm3(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
         tgt = tgt + self.dropout3(tgt2)
-        return tgt
+        # 修改
+        return tgt, attn_weights
 
     def forward(self, tgt, memory,
                 tgt_mask: Optional[Tensor] = None,

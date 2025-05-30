@@ -57,6 +57,7 @@ policy:
   episode_len: 100  # 只影响评估
   ckpt_name: 'policy_last.ckpt'
   show_3D_state: false
+  show_transform_attention: true
   temporal_agg: false
   # -------Training-------
   ## ** 基础设置 **
