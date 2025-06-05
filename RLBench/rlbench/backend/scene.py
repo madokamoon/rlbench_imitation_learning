@@ -556,7 +556,10 @@ class Scene(object):
         min_rot, max_rot = self.task.base_rotation_bounds()
         self._workspace_boundary.sample(
             self.task.boundary_root(),
-            min_rotation=min_rot, max_rotation=max_rot)
+            # 原代码
+            # min_rotation=min_rot, max_rotation=max_rot)
+            # rlbench修改 去掉工作空间的随机初始旋转
+            min_rotation=(0.0, 0.0, -0.01), max_rotation=(0.0, 0.0, 0.01))
 
     def _get_misc(self):
         def _get_cam_data(cam: VisionSensor, name: str):
