@@ -50,7 +50,7 @@ class ACTPolicy(nn.Module):
             a_hat, is_pad_hat, vae_out, probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
             if show_attn_weights:
                 visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
-                e()
+                input("Press Enter to continue...")
             return a_hat
 
     def forward_pass(self, data):
@@ -167,7 +167,7 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
     
     # 创建一个列表存储所有图像（原始图像和热图）
     all_images = [original_img]
-    all_titles = ["image"]
+    all_titles = ["original_img"]
     
     # 白色分隔条高度
     separator_height = 5
@@ -217,38 +217,38 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
                 
                 # 添加到图像列表
                 all_images.append(colored_heatmap)
-                all_titles.append(f"查询 {query_idx}")
+                all_titles.append(f"step {query_idx}")
                 
             else:
                 # 如果特征点不够，创建一个最佳匹配的布局
                 print(f"警告: 可用特征点({attn_data_len})少于预期({total_feats})")
                 
-                # 尝试保持高宽比
-                new_feat_h = min(feat_h, int(np.sqrt(attn_data_len/num_cameras)))
-                new_feat_w = min(int(attn_data_len/new_feat_h), feat_w)
+                # # 尝试保持高宽比
+                # new_feat_h = min(feat_h, int(np.sqrt(attn_data_len/num_cameras)))
+                # new_feat_w = min(int(attn_data_len/new_feat_h), feat_w)
                 
-                if new_feat_h * new_feat_w <= attn_data_len:
-                    attention_map = query_attn[:new_feat_h * new_feat_w].reshape(new_feat_h, new_feat_w)
-                    attention_map = attention_map.unsqueeze(0).unsqueeze(0)
-                    attention_map = interpolate(attention_map, 
-                                               size=(height, width * num_cameras), 
-                                               mode='nearest')
-                    attention_map = attention_map[0, 0].cpu().detach().numpy()
+                # if new_feat_h * new_feat_w <= attn_data_len:
+                #     attention_map = query_attn[:new_feat_h * new_feat_w].reshape(new_feat_h, new_feat_w)
+                #     attention_map = attention_map.unsqueeze(0).unsqueeze(0)
+                #     attention_map = interpolate(attention_map, 
+                #                                size=(height, width * num_cameras), 
+                #                                mode='nearest')
+                #     attention_map = attention_map[0, 0].cpu().detach().numpy()
                     
-                    # 创建彩色热图
-                    cmap = plt.cm.get_cmap('hot')
-                    colored_heatmap = cmap(attention_map)
-                    colored_heatmap = (colored_heatmap[:, :, :3] * 255).astype(np.uint8)
+                #     # 创建彩色热图
+                #     cmap = plt.cm.get_cmap('hot')
+                #     colored_heatmap = cmap(attention_map)
+                #     colored_heatmap = (colored_heatmap[:, :, :3] * 255).astype(np.uint8)
                     
-                    # 添加到图像列表
-                    all_images.append(colored_heatmap)
-                    all_titles.append(f"查询 {query_idx} (调整大小)")
-                else:
-                    # 创建一个空白图像来表示错误
-                    blank = np.ones((height, width * num_cameras, 3), dtype=np.uint8) * 200
-                    cv_text(blank, f"查询 {query_idx} - 数据不足", (10, height//2))
-                    all_images.append(blank)
-                    all_titles.append(f"查询 {query_idx} (数据不足)")
+                #     # 添加到图像列表
+                #     all_images.append(colored_heatmap)
+                #     all_titles.append(f"step {query_idx} (调整大小)")
+                # else:
+                #     # 创建一个空白图像来表示错误
+                #     blank = np.ones((height, width * num_cameras, 3), dtype=np.uint8) * 200
+                #     cv_text(blank, f"查询 {query_idx} - 数据不足", (10, height//2))
+                #     all_images.append(blank)
+                #     all_titles.append(f"查询 {query_idx} (数据不足)")
                 
         except Exception as e:
             print(f"处理查询 {query_idx} 时出错: {e}")

@@ -12,11 +12,11 @@ data_sampler_config:
 
     
 policy:
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_10_10000_fwo
   camera_names:
     - front_camera
     - wrist_camera
     - overhead_camera
   batch_size: 8
-  chunk_size: 50
+  chunk_size: 10
   num_steps: 10000

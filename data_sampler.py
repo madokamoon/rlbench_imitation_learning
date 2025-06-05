@@ -557,6 +557,14 @@ class RLBenchProcessor:
 
             imgdata[f"{camera_name}_mask"] = rgb_array
 
+        # 测试输入空白图像
+        # imgdata["front_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+        # imgdata["wrist_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+        # imgdata["left_shoulder_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+        # imgdata["right_shoulder_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+        # imgdata["overhead_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+
+
 
         import copy
 

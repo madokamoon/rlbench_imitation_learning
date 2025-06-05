@@ -4,7 +4,7 @@ defaults:
 mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
 
 data_sampler_config:
-  headless: true
+  headless: false
   cameras:
     - wrist_camera
 
