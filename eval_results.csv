@@ -20,3 +20,10 @@ act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_o,2025-05-29-03-25-2
 act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_w,2025-05-29-04-00-01,False,100,50,0.46,0.52,66,57,0.059,1.0,0.026
 act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_l,2025-05-29-04-27-58,False,100,50,0.18,0.64,75,60,0.087,1.0,0.026
 act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_r,2025-05-29-04-53-59,False,100,50,0.22,0.78,61,56,0.07,1.0,0.022
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_fwo,2025-05-30-13-31-54,True,100,50,0.26,0.62,75,63,0.07,1.0,0.041
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_f,2025-05-30-13-43-45,True,100,50,0.24,0.76,67,77,0.093,1.0,0.035
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_o,2025-05-30-13-55-46,True,100,50,0.1,0.66,73,69,0.143,1.0,0.037
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_w,2025-05-30-14-05-10,True,100,50,0.18,0.74,67,62,0.103,1.0,0.037
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_l,2025-05-30-14-20-17,True,100,50,0.02,0.78,83,83,0.133,1.0,0.037
+act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_r,2025-05-30-14-34-43,True,100,50,0.1,0.86,75,78,0.168,1.0,0.036
+act_policy,push_button,policy_last.ckpt,100demos_8_10_10000_fwo,2025-05-30-20-26-11,False,100,50,0.12,0.42,77,61,0.122,1.0,0.038
