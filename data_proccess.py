@@ -191,7 +191,7 @@ class RawToHDF5Converter:
                         norm_weight = weight * mask_count / total_mask_weight
                         local_datas[f'/observations/weight/{cam_name}'].append(norm_weight)
                 else:
-                    print(f"警告: 文件夹 {folder_name} 中的mask摄像头权重总和为0，使用默认权重1.0")
+                    # print(f"警告: 文件夹 {folder_name} 中的mask摄像头权重总和为0，使用默认权重1.0")
                     for cam_name in mask_cams:
                         local_datas[f'/observations/weight/{cam_name}'].append(1.0)
             

@@ -27,3 +27,15 @@ act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_w,2025-05-30-14-05-1
 act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_l,2025-05-30-14-20-17,True,100,50,0.02,0.78,83,83,0.133,1.0,0.037
 act_policy,push_button,policy_last.ckpt,100demos_8_50_10000_r,2025-05-30-14-34-43,True,100,50,0.1,0.86,75,78,0.168,1.0,0.036
 act_policy,push_button,policy_last.ckpt,100demos_8_10_10000_fwo,2025-05-30-20-26-11,False,100,50,0.12,0.42,77,61,0.122,1.0,0.038
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_fwo,2025-06-05-23-55-21,False,100,50,0.12,0.66,70,68,0.097,1.0,0.04
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_f,2025-06-06-00-13-18,False,100,50,0.12,0.74,71,46,0.109,1.0,0.033
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_o,2025-06-06-00-31-45,False,100,50,0.04,0.8,78,84,0.146,1.0,0.032
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_w,2025-06-06-00-49-53,False,100,50,0.04,0.66,72,62,0.129,1.0,0.033
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_l,2025-06-06-01-07-41,False,100,50,0.16,0.82,66,55,0.124,1.0,0.032
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_20_10000_r,2025-06-06-01-25-36,False,100,50,0.1,0.8,67,55,0.119,1.0,0.034
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_fwo,2025-06-06-16-16-47,False,100,50,0.32,0.66,71,55,0.069,1.0,0.039
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_f,2025-06-06-16-20-37,False,100,50,0.44,0.56,63,62,0.059,1.0,0.024
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_o,2025-06-06-16-24-37,False,100,50,0.36,0.62,67,52,0.1,1.0,0.025
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_w,2025-06-06-16-28-50,False,100,50,0.26,0.7,69,58,0.093,1.0,0.03
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_l,2025-06-06-16-33-01,False,100,50,0.18,0.72,67,52,0.095,1.0,0.027
+act_policy,push_button_norot,policy_last.ckpt,100demos_8_50_10000_r,2025-06-06-16-37-10,False,100,50,0.44,0.46,67,59,0.065,1.0,0.026
