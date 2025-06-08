@@ -1,5 +1,5 @@
 policy_class: act_policy
-task_name: push_button
+task_name: pick_and_lift_small_size
 
 # ------------------ 采样 重现 评估 ------------------
 mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
@@ -19,7 +19,7 @@ data_sampler_config:
     - overhead_camera
   # 启用后所有demo的初始物体位置一样
   static_positions: false
-  headless: true
+  headless: false
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
 
 # ------------------ 数据转换 ------------------

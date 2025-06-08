@@ -2,12 +2,14 @@
 
 configs=(
     
-    "act_config_fwo.yaml" 
-    "act_config_f.yaml"    
-    "act_config_o.yaml"   
-    "act_config_w.yaml"  
-    "act_config_l.yaml"   
-    "act_config_r.yaml"
+    "act_config_fwo_mask.yaml" 
+    
+    # "act_config_fwo.yaml" 
+    # "act_config_f.yaml"    
+    # "act_config_o.yaml"   
+    # "act_config_w.yaml"  
+    # "act_config_l.yaml"   
+    # "act_config_r.yaml"
 
     # "act_sam_config_vit_h.yaml"
     # "act_sam_config_vit_l.yaml"
