@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 读取掩码图像为灰度模式
-mask_path = '/home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/1demos/0/front_camera_mask/100.png'
+mask_path = '/home/haoyue/code/rlbench_imitation_learning/data/push_button/100demos/0/front_camera_mask/0.png'
 mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
 print(f"掩码形状: {mask.shape}")
@@ -60,23 +60,38 @@ for i, value in enumerate(unique_values):
         print(f"区域 {i+1}: 灰度值 {value}, 面积最大连通块中心点: ({x}, {y}), 区域颜色: {color}")
 
 # 显示结果
-cv2.namedWindow('Mask with Labels', cv2.WINDOW_NORMAL)
-cv2.imshow('Mask with Labels', display_img)
+# cv2.namedWindow('Mask with Labels', cv2.WINDOW_NORMAL)
+# cv2.imshow('Mask with Labels', display_img)
 
-cv2.namedWindow('Colored Regions', cv2.WINDOW_NORMAL)
-cv2.imshow('Colored Regions', cv2.cvtColor(colored_mask, cv2.COLOR_RGB2BGR))
+# cv2.namedWindow('Colored Regions', cv2.WINDOW_NORMAL)
+# cv2.imshow('Colored Regions', cv2.cvtColor(colored_mask, cv2.COLOR_RGB2BGR))
 
-print("按任意键退出")
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# print("按任意键退出")
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
+# 保存结果为图片
+# cv2.imwrite('mask_with_labels.png', display_img)
+# cv2.imwrite('colored_regions.png', cv2.cvtColor(colored_mask, cv2.COLOR_RGB2BGR))
+
+# print("结果已保存为 'mask_with_labels.png' 和 'colored_regions.png'")
+
+# 拼接两张图片
+combined_img = cv2.hconcat([display_img, cv2.cvtColor(colored_mask, cv2.COLOR_RGB2BGR)])
+
+# 保存拼接后的图片
+combined_img_path = 'combined_result.png'
+cv2.imwrite(combined_img_path, combined_img)
+
+print(f"拼接结果已保存为 '{combined_img_path}'")
 
 
 # ACT模型使用示例
 # 方法1: 使用单通道掩码
-mask_for_model = mask  # 已经是单通道
+# mask_for_model = mask  # 已经是单通道
 
 # 方法2: 扩展为3通道掩码
-mask_3channel = np.stack([mask, mask, mask], axis=2)
+# mask_3channel = np.stack([mask, mask, mask], axis=2)
 
 # 终点 83        （255，0，0）
 # 夹爪 35 31 34  （255，0，0）

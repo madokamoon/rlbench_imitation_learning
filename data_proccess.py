@@ -20,7 +20,7 @@ from weight.weight import calculate_change_weight
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, use_weight=False):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480, end_pad=False, use_weight=False,taskname=None):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -31,6 +31,7 @@ class RawToHDF5Converter:
         self.image_height = image_height
         self.end_pad = end_pad 
         self.use_weight = use_weight 
+        self.taskname = taskname
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -154,18 +155,36 @@ class RawToHDF5Converter:
                 for cam_name in local_camera_names:
                     img_path = os.path.join(folder_path, cam_name, f"{frame_idx}.png")
                     if not os.path.exists(img_path):
-                        # print(f"找不到图像: {img_path}")
+                        print(f"找不到图像: {img_path}")
                         continue
-                    
                     # 读取并处理图像
                     img = Image.open(img_path)
-                    
+
+
                     # 检查图像尺寸，如果不是指定尺寸就调整
                     if img.size != (self.image_width, self.image_height):
                         img = img.resize((self.image_width, self.image_height))
 
                     # 转换为numpy数组
                     img_array = np.array(img)
+
+                    if cam_name.endswith('mask'):
+                        if self.taskname == "pick_and_lift_small_size":
+                            mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            # 根据灰度值设置不同的RGB值
+                            mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                            mask_rgb_array[img_array == 84, 1] = 255
+                            mask_rgb_array[img_array == 83, 2] = 255
+                            img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+                        elif self.taskname == "push_button":
+                            mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            # 根据灰度值设置不同的RGB值
+                            mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                            mask_rgb_array[(img_array == 85) | (img_array == 86), 1] = 255
+                            mask_rgb_array[(img_array == 81) , 2] = 255
+                            img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+
+
                     local_datas[f'/observations/images/{cam_name}'].append(img_array)
                     
                     # 计算权重（与前一帧比较）
@@ -264,7 +283,6 @@ class RawToHDF5Converter:
                         # compression='gzip', compression_opts=2, shuffle=True)
                         )
 
-
             # 创建权重组
             weight = obs.create_group('weight')
             
@@ -353,7 +371,8 @@ def main(cfg: OmegaConf):
                                    image_width=image_width,
                                    image_height=image_height,
                                    end_pad=end_pad,
-                                   use_weight=use_weight)
+                                   use_weight=use_weight,
+                                   taskname=taskname)
 
     # 如果未指定线程数，使用处理器核心数
     if max_workers is None:

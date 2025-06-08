@@ -1,5 +1,6 @@
 policy_class: act_policy
-task_name: pick_and_lift_small_size
+# task_name: pick_and_lift_small_size
+task_name: push_button
 
 # ------------------ 采样 重现 评估 ------------------
 mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
@@ -61,7 +62,7 @@ policy:
   # -------Training-------
   ## ** 基础设置 **
   dataset_dir: data/${task_name}/100demos_hdf5
-  use_wandb: true
+  use_wandb: false
   wandb_project_name: ${task_name}
   batch_size: 8
   seed: 0

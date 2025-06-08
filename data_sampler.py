@@ -72,7 +72,6 @@ class RLBenchProcessor:
             self.max_steps =  act_policy_config['episode_len']
             self.act_policy = ACTPolicyWrapper(act_policy_config)
 
-
         self.env = None
         self.task = None
         self.obs_config = None
@@ -81,18 +80,26 @@ class RLBenchProcessor:
         if not os.path.exists(directory):
             os.makedirs(directory)
             print(f"创建目录: {directory}")
-        else :
-            user_input = input("输出路径已经存在，是否覆盖？(y/n): ")
-            if user_input.lower() == 'y':
+        else:
+            print("输出路径已经存在，请选择操作:")
+            print("1. 覆盖重新收集")
+            print("2. 继续收集")
+            print("3. 取消程序")
+            user_input = input("请输入选项 (1/2/3): ")
+
+            if user_input == '1':
                 import shutil
                 shutil.rmtree(directory)
                 print(f"已删除现有目录: {directory}")
                 os.makedirs(directory)
                 print(f"创建目录: {directory}")
+                return 1
+            elif user_input == '2':
+                print("继续使用现有目录进行数据收集")
+                return 2
             else:
                 print("操作已取消")
-                sys.exit(0) 
-                return
+                sys.exit(0)
 
             
     def _check_path_exists(self, directory):
@@ -351,19 +358,8 @@ class RLBenchProcessor:
                 # print("mask_img.shape",mask_img.shape)
 
                 if mask_img is not None:
-
-                    # 处理掩码图像
-                    # 创建空白RGB图像
-                    mask_array = mask_img
-                    rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
-                    
-                    # 根据灰度值设置不同的RGB值
-                    rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
-                    rgb_array[mask_array == 84, 1] = 255
-                    rgb_array[mask_array == 83, 2] = 255
-
                     mask_path = episode_folder.joinpath(f"{camera_name}_mask", f"{i}.png")
-                    mask_image = np.clip(rgb_array, 0, 255).astype(np.uint8)
+                    mask_image = np.clip(mask_img, 0, 255).astype(np.uint8)
                     Image.fromarray(mask_image).save(str(mask_path))
 
         # 保存状态数据到JSON文件
@@ -376,7 +372,7 @@ class RLBenchProcessor:
     def collect_and_save_demos(self):
         """逐个收集、保存demo，并在每个demo处理完后释放内存"""
     
-        self._check_and_make(self.variation_path)
+        choose = self._check_and_make(self.variation_path)
 
         config_save_path = os.path.join(self.variation_path, "data_sampler_config.yaml")
         OmegaConf.save(config=self.data_sampler_config, f=config_save_path, resolve=True)
@@ -413,8 +409,20 @@ class RLBenchProcessor:
 
             reference_demo, random_state, numpy_state = self.load_reference_demo()
 
+        if choose == 2:
+            existing_folders = [
+                folder for folder in os.listdir(self.variation_path)
+                if os.path.isdir(os.path.join(self.variation_path, folder)) and folder.isdigit()
+            ]
+            existing_folders.sort(key=lambda x: int(x))
+            next_index = int(existing_folders[-1]) + 1 if existing_folders else 0
+            print(f"继续收集，从编号 {next_index} 开始")
+        else:
+            next_index = 0
+            print(f"新建目录，从编号 {next_index} 开始")
+
         # 逐个收集和保存demo
-        for i in range(self.num_demos):
+        for i in range(next_index , self.num_demos):
             print(f'收集和保存演示 {i+1}/{self.num_demos}')
             
             if self.static_positions == True:
@@ -547,15 +555,24 @@ class RLBenchProcessor:
 
             # 处理掩码图像
             # 创建空白RGB图像
-            mask_array = mask_img
-            rgb_array = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+            mask_rgb_array = mask_img
             
-            # 根据灰度值设置不同的RGB值
-            rgb_array[(mask_array == 35) | (mask_array == 31) | (mask_array == 34) , 0] = 255
-            rgb_array[mask_array == 84, 1] = 255
-            rgb_array[mask_array == 83, 2] = 255
+            if self.taskname == "pick_and_lift_small_size":
+                mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                # 根据灰度值设置不同的RGB值
+                mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                mask_rgb_array[img_array == 84, 1] = 255
+                mask_rgb_array[img_array == 83, 2] = 255
+                img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+            elif self.taskname == "push_button":
+                mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                # 根据灰度值设置不同的RGB值
+                mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                mask_rgb_array[(img_array == 85) | (img_array == 86), 1] = 255
+                mask_rgb_array[(img_array == 81) , 2] = 255
+                img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
 
-            imgdata[f"{camera_name}_mask"] = rgb_array
+            imgdata[f"{camera_name}_mask"] = img_array
 
 
         import copy
