@@ -7,13 +7,13 @@ metric:
 parameters:
   kl_weight:
     min: 1
-    max: 50
+    max: 10
 command:
   - python
   - act_training.py
-  - --config-name=act_config_fwo.yaml
+  - --config-name=act_config_fwo_sweeps.yaml
 
 
-# wandb sweep --project act sweeps.yaml
-# wandb agent --count 10 moonllx1175-hit/act/h77u2dsu
+# wandb sweep --project klweightsweeps sweeps.yaml
+# wandb agent --count 10 moonllx1175-hit/klweightsweeps/t47wwg7i
 

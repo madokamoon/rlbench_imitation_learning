@@ -30,34 +30,31 @@ def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
     # 主函数，处理命令行参数并执行训练或评估
     set_seed(1)
-    # 解析命令行参数
     args = cfg["policy"]
-    is_eval = args['eval']
+    # 如果是sweep模式，提取操作 args 参数
+    if not args['eval'] and args['use_wandb']:
+        expr_name = args['ckpt_dir'].split('/')[-1]
+        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
+        if 'kl_weight' in wandb.config.keys():
+            print(f'【sweeps模式】本次 kl_weight 为: {wandb.config.kl_weight}')
+            args['kl_weight'] = wandb.config.kl_weight
+            args['ckpt_dir'] = os.path.join(args['ckpt_dir'], 'kl_weight'+str(wandb.config.kl_weight))
+        else:
+            print(f'【单次训练】')
+
+    # 解析命令行参数
     ckpt_dir = args['ckpt_dir']
     policy_class = args['policy_class']
-    onscreen_render = args['onscreen_render']
-    task_name = args['task_name']
     batch_size_train = args['batch_size']
     batch_size_val = args['batch_size']
-    num_steps = args['num_steps']
-    eval_every = args['eval_every']  # 训练时候 多少step评估一次
-    validate_every = args['validate_every']
-    save_every = args['save_every']
-    resume_ckpt_path = args['resume_ckpt_path']
     use_wandb = args['use_wandb']
     dataset_dir = args['dataset_dir']
-    episode_len = args['episode_len']
     camera_names = args['camera_names']
     dataloader_name = args['dataloader_name']
     stats_dir = args.get('stats_dir', None)
     sample_weights = args.get('sample_weights', None)
     train_ratio = args.get('train_ratio', 0.99)
     name_filter = args.get('name_filter', lambda n: True)
-    is_sim = task_name[:4] == 'sim_'
-    # act修改维度
-    state_dim = args['state_dim']
-    lr_backbone = args['lr_backbone']
-    backbone = args['backbone']
 
     # act修改 训练保存结果路径加入时间戳
     if  args['ckpt_dir_end'] != None:
@@ -65,23 +62,12 @@ def main(cfg: OmegaConf):
         str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
         ckpt_dir = os.path.join(ckpt_dir, str_time)
 
-    if not is_eval and use_wandb:
-        expr_name = ckpt_dir.split('/')[-1]
-        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
-        if 'kl_weight' in wandb.config.keys():
-            print(f'【sweeps模式】本次 kl_weight 为: {wandb.config.kl_weight}')
-            args['kl_weight'] = wandb.config.kl_weight
-            ckpt_dir = os.path.join(ckpt_dir, 'kl_weight'+str(wandb.config.kl_weight))
-        else:
-            print(f'【单次训练】')
-
-
     # 保存配置文件到训练的目录
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
         print(f"创建目录: {ckpt_dir}")
     config_save_path = os.path.join(ckpt_dir, "training_config.yaml")
-    OmegaConf.save(config=cfg, f=config_save_path, resolve=True)
+    OmegaConf.save(config=args, f=config_save_path, resolve=True)
     print(f"本次运行配置已保存到: {config_save_path}")
 
     policy_config = args
@@ -97,10 +83,6 @@ def main(cfg: OmegaConf):
         'policy_config': policy_config,
         'actuator_config': actuator_config,
     }
-
-
-    
-
 
     load_data_config = omegaconf.DictConfig({
         "_target_": "act_plus_plus.detr.dataloaders." + dataloader_name + ".load_data",

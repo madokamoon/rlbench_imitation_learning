@@ -8,7 +8,7 @@ import IPython
 import hydra
 import omegaconf
 e = IPython.embed
-
+import numpy as np
 
 class ACTPolicy(nn.Module):
     def __init__(self, args_override):
@@ -291,33 +291,11 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
     
     import cv2
     cv2.imwrite("attention_vis/multiple_queries_attention_cv2.png", cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
-    print("已使用CV2保存多查询注意力可视化: attention_vis/multiple_queries_attention_cv2.png")
-
-    
-    # 保存图像
-    # plt.figure(figsize=(12, total_height/80))  # 适当的尺寸
-    # plt.imshow(final_image)
-    # plt.axis('off')
-    # plt.tight_layout(pad=0)
-    # plt.savefig("attention_vis/multiple_queries_attention.png", dpi=150, bbox_inches='tight')
-    # plt.close()
-    
+ 
     print("已保存多查询注意力可视化: attention_vis/multiple_queries_attention.png")
 
 def cv_text(img, text, position, font_scale=0.7, color=(0, 0, 0), thickness=2):
     """在图像上添加文字"""
-    try:
-        import cv2
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(img, text, position, font, font_scale, color, thickness)
-    except ImportError:
-        # 如果没有cv2，使用PIL
-        try:
-            from PIL import Image, ImageDraw, ImageFont
-            pil_img = Image.fromarray(img)
-            draw = ImageDraw.Draw(pil_img)
-            # 使用默认字体
-            draw.text(position, text, fill=color)
-            img[:] = np.array(pil_img)
-        except:
-            pass  # 如果PIL也不可用，则跳过文字绘制
+    import cv2
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(img, text, position, font, font_scale, color, thickness)

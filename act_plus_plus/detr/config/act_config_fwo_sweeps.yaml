@@ -1,0 +1,24 @@
+defaults:
+  - /default   
+
+mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+
+data_sampler_config:
+  headless: false
+  cameras:
+    - front_camera
+    - wrist_camera
+    - overhead_camera
+
+policy:
+  ckpt_dir: training/${policy_class}_${task_name}/sweeps/100demos_8_50_10000_fwo
+  camera_names:
+    - front_camera
+    - wrist_camera
+    - overhead_camera
+  batch_size: 8
+  chunk_size: 50
+  num_steps: 2000
+  eval_every: 500
+  validate_every: 500
+  save_every: 500
