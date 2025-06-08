@@ -555,7 +555,7 @@ class RLBenchProcessor:
 
             # 处理掩码图像
             # 创建空白RGB图像
-            mask_rgb_array = mask_img
+            img_array = mask_img
             
             if self.taskname == "pick_and_lift_small_size":
                 mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
