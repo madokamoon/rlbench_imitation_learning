@@ -8,14 +8,12 @@ data_sampler_config:
   cameras:
     - front_camera
     - wrist_camera
-    - overhead_camera
 
 policy:
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fw_mask
   camera_names:
-    - front_camera
-    - wrist_camera
-    - overhead_camera
+    - front_camera_mask
+    - wrist_camera_mask
   batch_size: 8
   chunk_size: 50
   num_steps: 10000

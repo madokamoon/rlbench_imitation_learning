@@ -5,17 +5,15 @@ metric:
   goal: minimize
   name: l1
 parameters:
-  learning_rate:
-    min: 0.0001
-    max: 0.1
-  batch_size:
-    values: [16, 32, 64]
-  epochs:
-    values: [5, 10, 15]
-  optimizer:
-    values: ["adam", "sgd"]
+  kl_weight:
+    min: 1
+    max: 50
 command:
   - python
   - act_training.py
-  - --config-name="act_config_fwo.yaml"
+  - --config-name=act_config_fwo.yaml
+
+
+# wandb sweep --project act sweeps.yaml
+# wandb agent --count 10 moonllx1175-hit/act/h77u2dsu
 

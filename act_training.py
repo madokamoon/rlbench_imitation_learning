@@ -65,6 +65,17 @@ def main(cfg: OmegaConf):
         str_time = now_time.strftime("%Y-%m-%d-%H-%M-%S")
         ckpt_dir = os.path.join(ckpt_dir, str_time)
 
+    if not is_eval and use_wandb:
+        expr_name = ckpt_dir.split('/')[-1]
+        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
+        if 'kl_weight' in wandb.config.keys():
+            print(f'【sweeps模式】本次 kl_weight 为: {wandb.config.kl_weight}')
+            args['kl_weight'] = wandb.config.kl_weight
+            ckpt_dir = os.path.join(ckpt_dir, 'kl_weight'+str(wandb.config.kl_weight))
+        else:
+            print(f'【单次训练】')
+
+
     # 保存配置文件到训练的目录
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
@@ -87,14 +98,8 @@ def main(cfg: OmegaConf):
         'actuator_config': actuator_config,
     }
 
-    if not os.path.isdir(ckpt_dir):
-        # 创建检查点目录
-        os.makedirs(ckpt_dir)
-    config_path = os.path.join(ckpt_dir, 'config.pkl')
-    expr_name = ckpt_dir.split('/')[-1]
-    if not is_eval and use_wandb:
-        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
-        wandb.config.update(config)
+
+    
 
 
     load_data_config = omegaconf.DictConfig({

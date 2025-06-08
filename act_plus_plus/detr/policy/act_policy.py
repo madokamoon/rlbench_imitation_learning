@@ -33,7 +33,7 @@ class ACTPolicy(nn.Module):
             is_pad = is_pad[:, :self.model.num_queries]
 
             loss_dict = dict()
-            a_hat, is_pad_hat, (mu, logvar), probs, binaries = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
+            a_hat, is_pad_hat, (mu, logvar), probs, binaries , attn_weights = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
             if self.vq or self.model.encoder is None:
                 total_kld = [torch.tensor(0.0)]
             else:
@@ -57,7 +57,7 @@ class ACTPolicy(nn.Module):
         image_data, qpos_data, action_data, is_pad = data
         image_data, qpos_data, action_data, is_pad = image_data.cuda(), qpos_data.cuda(), action_data.cuda(), is_pad.cuda()
 
-        return self(qpos_data, image_data, action_data, is_pad)
+        return self(qpos_data, image_data, action_data, is_pad,)
 
     def configure_optimizers(self):
             return self.optimizer

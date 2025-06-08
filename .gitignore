@@ -6,10 +6,11 @@ data
 training
 foundation_ckpt
 
+
 .vscode
 .idea/
 
-
+attention_vis
 
 
 # Byte-compiled / optimized / DLL files
