@@ -158,17 +158,24 @@ class DETRVAE(nn.Module):
             # fold camera dimension into width dimension
             src = torch.cat(all_cam_features, axis=3)
             pos = torch.cat(all_cam_pos, axis=3)
-            hs = self.transformer(src, None, self.query_embed.weight, pos, latent_input, proprio_input, self.additional_pos_embed.weight)[0]
+            # 原代码
+            # hs = self.transformer(src, None, self.query_embed.weight, pos, latent_input, proprio_input, self.additional_pos_embed.weight)[0]
+            hs,attn_weights  = self.transformer(src, None, self.query_embed.weight, pos, latent_input, proprio_input, self.additional_pos_embed.weight)
         else:
             # 无骨干网络时的处理逻辑保持不变
             qpos = self.input_proj_robot_state(qpos)
             env_state = self.input_proj_env_state(env_state)
             transformer_input = torch.cat([qpos, env_state], axis=1)  # seq length = 2
-            hs = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight)[0]
-            
-        a_hat = self.action_head(hs)
-        is_pad_hat = self.is_pad_head(hs)
-        return a_hat, is_pad_hat, [mu, logvar], probs, binaries
+            # 原代码
+            # hs = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight)[0]
+            hs,attn_weights = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight)
+        # 原代码
+        # a_hat = self.action_head(hs)
+        # is_pad_hat = self.is_pad_head(hs)
+        # return a_hat, is_pad_hat, [mu, logvar], probs, binaries   
+        a_hat = self.action_head(hs[0])
+        is_pad_hat = self.is_pad_head(hs[0])
+        return a_hat, is_pad_hat, [mu, logvar], probs, binaries,attn_weights
 
 def reparametrize(mu, logvar):
     std = logvar.div(2).exp()
