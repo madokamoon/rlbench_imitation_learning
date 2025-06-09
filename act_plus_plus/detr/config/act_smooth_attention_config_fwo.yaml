@@ -13,7 +13,7 @@ data_sampler_config:
     - overhead_camera
 
 policy:
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_8_50_10000_fwo/kl_weight_37_attn_smooth_weight_1
   camera_names:
     - front_camera
     - wrist_camera
@@ -21,5 +21,5 @@ policy:
   batch_size: 8
   chunk_size: 50
   num_steps: 10000
-  kl_weight: 1
-  attn_smooth_weight: 0.1
+  kl_weight: 37
+  attn_smooth_weight: 1

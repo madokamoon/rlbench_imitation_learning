@@ -26,8 +26,10 @@ def load_hdf5(dataset_dir, dataset_name):
         action = root['/action'][()]
         image_dict = dict()
         for cam_name in root[f'/observations/images/'].keys():
-            image_dict[cam_name] = root[f'/observations/images/{cam_name}'][()]
-
+            # act修改 防止读取单通道的深度图像
+            if cam_name.endswith("flow") or cam_name.endswith("camera"):
+                image_dict[cam_name] = root[f'/observations/images/{cam_name}'][()]
+            
     return qpos, qvel, action, image_dict
 
 def main(args):

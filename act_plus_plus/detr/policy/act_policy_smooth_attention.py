@@ -20,7 +20,9 @@ class ACTPolicySmoothAttention(nn.Module):
         self.optimizer = optimizer
         self.kl_weight = args_override['kl_weight']
         self.vq = args_override['vq']
+        print(f'KL Weight {self.kl_weight}')
         self.attn_smooth_weight = args_override['attn_smooth_weight']
+        print(f'Attention Smoothness Weight {self.attn_smooth_weight}')
 
 
     def __call__(self, qpos, image, actions=None, is_pad=None, vq_sample=None, show_attn_weights=False):
@@ -37,9 +39,8 @@ class ACTPolicySmoothAttention(nn.Module):
             loss_dict = dict()
             a_hat, is_pad_hat, (mu, logvar), probs, binaries , attn_weights = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
 
-
             # print(f"注意力attn_weights形状: {attn_weights[0].shape}")
-            # torch.Size([7, batch_size, chunk_size, 902])
+            # torch.Size([解码器层数, batch_size, chunk_size, 902])
 
             if self.vq or self.model.encoder is None:
                 total_kld = [torch.tensor(0.0)]
@@ -59,8 +60,8 @@ class ACTPolicySmoothAttention(nn.Module):
             loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight + loss_dict['attn_smooth'] * self.attn_smooth_weight
 
             return loss_dict
-        else:  # inference time
-            a_hat, is_pad_hat, (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
+        else: # inference time
+            a_hat, is_pad_hat,  (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
             if show_attn_weights:
                 visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
                 input("Press Enter to continue...")
@@ -329,14 +330,13 @@ def compute_attention_smoothness_loss(attn_weights, layer_idx=-1):
 def compute_masked_attention_smoothness_loss(attn_weights, is_pad, layer_idx=-1):
     layer_attn = attn_weights[layer_idx]
 
-    
+    # 去除填充部分
     valid_mask = ~is_pad.unsqueeze(-1)  # [batch_size, chunk_size, 1]
     valid_pairs = valid_mask[:, :-1] & valid_mask[:, 1:]  # 相邻两个都有效
     
     diff = layer_attn[:, 1:] - layer_attn[:, :-1]
     masked_diff = diff * valid_pairs
     
-    # 计算均值时考虑有效对的数量
     valid_count = valid_pairs.sum() + 1e-8  # 避免除零
     smoothness_loss = torch.abs(masked_diff).sum() / valid_count
     

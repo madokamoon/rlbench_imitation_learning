@@ -1,15 +1,15 @@
 program: act_training.py
 name: sweepdemo
-method: random
+# method: random
+method: grid
 metric:
   goal: minimize
   name: l1
 parameters:
   kl_weight:
-    # values: [11,17,36,46,47]
-    # values: [1, 2, 3, 4, 5 ,7 ]
-    min: 10
-    max: 50
+    values: [1, 2, 3, 4, 5 ,7 , 11, 17, 36, 46, 47]
+    # min: 10
+    # max: 50
 command:
   - python
   - act_training.py

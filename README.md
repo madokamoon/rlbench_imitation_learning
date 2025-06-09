@@ -241,7 +241,7 @@ python data_proccess.py
 使用act自带的功能，支持任意维度和任意数量相机
 
 ```bash
-python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
+python act_plus_plus/visualize_episodes.py --dataset_dir data/push_button/100demos_hdf5 --episode 0
 ```
 
 MP4播放工具：`sudo apt-get install smplayer`
@@ -281,6 +281,11 @@ wandb agent --count 5 user/projectname/runid
 
 # 三、其他
 
+## 修改
+
 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
 搜索 `rlbench修改` 可以查看对 RlBench 文件夹内的代码的所有改动
 
+## backfile 备份和弃用的文件
+
+`data_proccess_back.py` 6.9 加入光流之前，新文件删除了weight和pad功能
