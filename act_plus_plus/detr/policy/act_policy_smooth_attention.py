@@ -12,7 +12,7 @@ e = IPython.embed
 import numpy as np
 import copy
 
-class ACTPolicy(nn.Module):
+class ACTPolicySmoothAttention(nn.Module):
     def __init__(self, args_override):
         super().__init__()
         model, optimizer = build_ACT_model_and_optimizer(args_override)
@@ -20,7 +20,7 @@ class ACTPolicy(nn.Module):
         self.optimizer = optimizer
         self.kl_weight = args_override['kl_weight']
         self.vq = args_override['vq']
-        print(f'KL Weight {self.kl_weight}')
+        self.attn_smooth_weight = args_override['attn_smooth_weight']
 
 
     def __call__(self, qpos, image, actions=None, is_pad=None, vq_sample=None, show_attn_weights=False):
@@ -36,6 +36,11 @@ class ACTPolicy(nn.Module):
 
             loss_dict = dict()
             a_hat, is_pad_hat, (mu, logvar), probs, binaries , attn_weights = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
+
+
+            # print(f"注意力attn_weights形状: {attn_weights[0].shape}")
+            # torch.Size([7, batch_size, chunk_size, 902])
+
             if self.vq or self.model.encoder is None:
                 total_kld = [torch.tensor(0.0)]
             else:
@@ -46,10 +51,16 @@ class ACTPolicy(nn.Module):
             l1 = (all_l1 * ~is_pad.unsqueeze(-1)).mean()
             loss_dict['l1'] = l1
             loss_dict['kl'] = total_kld[0]
-            loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight
+
+            # 计算并添加注意力平滑损失
+            attn_smooth_loss = compute_masked_attention_smoothness_loss(attn_weights, is_pad)
+            loss_dict['attn_smooth'] = attn_smooth_loss
+
+            loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight + loss_dict['attn_smooth'] * self.attn_smooth_weight
+
             return loss_dict
-        else: # inference time
-            a_hat, is_pad_hat,  (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
+        else:  # inference time
+            a_hat, is_pad_hat, (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
             if show_attn_weights:
                 visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
                 input("Press Enter to continue...")
@@ -118,7 +129,7 @@ def build_ACT_model_and_optimizer(args):
 
 def make_policy(policy_config):
     # 创建策略模型
-    policy = ACTPolicy(policy_config)
+    policy = ACTPolicySmoothAttention(policy_config)
     return policy
 
 def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx=-1):
@@ -301,3 +312,32 @@ def cv_text(img, text, position, font_scale=0.7, color=(0, 0, 0), thickness=2):
     import cv2
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(img, text, position, font, font_scale, color, thickness)
+
+def compute_attention_smoothness_loss(attn_weights, layer_idx=-1):
+    """计算相邻动作之间的注意力平滑损失"""
+    layer_attn = attn_weights[layer_idx]  # [batch_size, chunk_size, 902]
+    
+    # 使用从0到chunk_size-2的切片和从1到chunk_size-1的切片
+    diff = layer_attn[:, 1:] - layer_attn[:, :-1]  # [batch_size, chunk_size-1, 902]
+    
+    # 计算L1损失
+    smoothness_loss = torch.abs(diff).mean()
+    
+    return smoothness_loss
+
+# 考虑填充掩码的改进版本
+def compute_masked_attention_smoothness_loss(attn_weights, is_pad, layer_idx=-1):
+    layer_attn = attn_weights[layer_idx]
+
+    
+    valid_mask = ~is_pad.unsqueeze(-1)  # [batch_size, chunk_size, 1]
+    valid_pairs = valid_mask[:, :-1] & valid_mask[:, 1:]  # 相邻两个都有效
+    
+    diff = layer_attn[:, 1:] - layer_attn[:, :-1]
+    masked_diff = diff * valid_pairs
+    
+    # 计算均值时考虑有效对的数量
+    valid_count = valid_pairs.sum() + 1e-8  # 避免除零
+    smoothness_loss = torch.abs(masked_diff).sum() / valid_count
+    
+    return smoothness_loss

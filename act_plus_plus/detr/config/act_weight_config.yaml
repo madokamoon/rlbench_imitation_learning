@@ -1,6 +1,8 @@
 defaults:
   - /default   
 
+policy_class: act_sam_lora_policy
+
 mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
 
 policy_class: act_weight_policy
