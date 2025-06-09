@@ -194,17 +194,32 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 
 ## 文件
 
-配置文件在 `act_plus_plus/detr/config` 目录下
+```bash
+rlbench_imitation_learning
+├── act_plus_plus           # act源码
+├── RLBench                 # Rlbench源码
+├── mytasks                 # 自定义Rlbench任务
+├── config_symlink -> act_plus_plus/detr/config     # 配置文件软连接
+├── test_scripts            # 测试脚本
+├── tools                   # 工具
+├── weight                  # 权重计算
+├── backfile                # 备份和弃用文件
+├── data_sampler.py         # 数据收集 重现 测试
+├── data_proccess.py        # 数据处理
+├── act_training.py         # 训练
+├── act_policy_wrapper.py   # 测试用
+├── bash_train_and_eval.sh  # 批量训练测试
+├── eval_results.csv        # 测试结果          
+├── sweeps.yaml             # wandb参数扫描
+├── foundation_ckpt         # 基础模型权重(ignore)
+├── data                    # 演示数据(ignore)
+├── outputs                 # hydra输出(ignore)
+├── training                # 训练结果(ignore)
+├── wandb                   # wandb输出(ignore)
+└── README.md   
+```
 
 **配置文件优先级：** 命令行指定 `--config-name=***.yaml` > 默认配置 `default.yaml`
-
-`data_sampler.py`：集成数据采集，数据重现，仿真测试的功能
-
-`data_proccess.py` ：数据转换功能，转换为hdf5同时计算权重
-
-`act_training.py` ：训练
-
-`act_policy_wrapper.py` ：被 `data_sampler.py` 的测试模式调用
 
 
 ## 数据收集
@@ -255,7 +270,7 @@ hdf5网页工具  https://myhdf5.hdfgroup.org/
 运行配置会保存至 `ckpt_dir/training_config.yaml`
 
 ```bash
-python act_training.py
+python act_training.py --config-name=***.yaml
 ```
 
 ~~**原始方式已弃用**~~
@@ -269,7 +284,7 @@ CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick
 ## 仿真测试
 
 ```bash
-python data_sampler.py
+python data_sampler.py --config-name=***.yaml
 ```
 
 ## 参数扫描
@@ -284,8 +299,9 @@ wandb agent --count 5 user/projectname/runid
 ## 修改
 
 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
+
 搜索 `rlbench修改` 可以查看对 RlBench 文件夹内的代码的所有改动
 
 ## backfile 备份和弃用的文件
 
-`data_proccess_back.py` 6.9 加入光流之前，新文件删除了weight和pad功能
+`data_proccess_back.py` 6.9 23:22 新文件删除了weight和pad功能,加入光流
