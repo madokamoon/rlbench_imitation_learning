@@ -192,24 +192,22 @@ cp /home/madoka/python/rlbench_imitation_learning/RLBench/rlbench/task_design.tt
 
 # 二、使用说明
 
-## 文件说明
+## 文件
 
-data_sampler.yaml：集成采集，重现，转换，训练，测试的默认配置
+配置文件在 `act_plus_plus/detr/config` 目录下
 
-**配置文件优先级：** 命令行指定 > data_sampler_local.yaml > data_sampler.yaml
+**配置文件优先级：** 命令行指定 `--config-name=***.yaml` > 默认配置 `default.yaml`
 
-data_sampler.py：集成数据采集（mode=0），数据重现（mode=1），仿真测试（mode=2）的功能
+`data_sampler.py`：集成数据采集，数据重现，仿真测试的功能
 
-data_proccess.py ：数据转换功能，转换为hdf5同时计算权重
+`data_proccess.py` ：数据转换功能，转换为hdf5同时计算权重
 
-act_training.py ：训练
+`act_training.py` ：训练
 
-act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
-
-
+`act_policy_wrapper.py` ：被 `data_sampler.py` 的测试模式调用
 
 
-## mode=0 数据收集
+## 数据收集
 
 运行配置会保存至 `save_path_end/data_sampler_config.yaml`
 
@@ -217,11 +215,10 @@ act_policy_wrapper.py ：被 data_sampler.py 的 （mode=2） 模式调用
 
 ```bash
 python data_sampler.py
-python data_sampler.py --config config.yaml
 ```
 保存路径为 `save_path_head/taskname/save_path_end(空白为时间戳)`
 
-## mode=1 数据重现
+## 数据重现
 
 利用收集的数据在rlbench中重现动作，如果不是静态模式，仅重现动作
 
@@ -229,60 +226,61 @@ python data_sampler.py --config config.yaml
 
 ```bash
 python data_sampler.py
-python data_sampler.py --config config.yaml
 ```
-## data_proccess.py 数据转换
+## 数据转换
 
 默认为全部线程
 
 ```bash
 python data_proccess.py
-python data_proccess.py --config config.yaml --threads 12 
 ```
 保存路径为 `save_path_head/taskname/save_path_end(空白为时间戳)_hdf5`
 
-## 可视化 
+## 可视化hdf5
 
 使用act自带的功能，支持任意维度和任意数量相机
 
 ```bash
-python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir /home/madoka/python/rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
+python act_plus/act_plus_plus/visualize_episodes.py --dataset_dir rlbench_imitation_learning/data/pick_and_lift/30static_hdf5 --episode 0
 ```
 
 MP4播放工具：`sudo apt-get install smplayer`
 
 hdf5网页工具  https://myhdf5.hdfgroup.org/ 
 
-使用 tools，但tools只支持六维机械臂数据和三个相机
+使用tools，但tools只支持六维机械臂数据和三个相机
 
-## imitate_episodes.py 训练 
-
-**配置文件方式：**
+## 训练 
 
 运行配置会保存至 `ckpt_dir/training_config.yaml`
 
 ```bash
 python act_training.py
-python act_training.py --config config.yaml
 ```
 
-**原始方式：**
+~~**原始方式已弃用**~~
 
-配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`
+~~配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`~~
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_fwo  --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
 ```
 
-## mode=2 仿真测试
+## 仿真测试
 
 ```bash
 python data_sampler.py
-python data_sampler.py --config config.yaml
 ```
 
+## 参数扫描
+
+```bash
+wandb sweep --project projectname sweeps.yaml
+wandb agent --count 5 user/projectname/runid
+```
 
 # 三、其他
 
 搜索 `act修改` 可以查看对 act_plus_plus 文件夹内的代码的所有改动
+搜索 `rlbench修改` 可以查看对 RlBench 文件夹内的代码的所有改动
 

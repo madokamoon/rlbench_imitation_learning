@@ -6,8 +6,10 @@ metric:
   name: l1
 parameters:
   kl_weight:
-    min: 1
-    max: 10
+    # values: [11,17,36,46,47]
+    # values: [1, 2, 3, 4, 5 ,7 ]
+    min: 10
+    max: 50
 command:
   - python
   - act_training.py
@@ -15,5 +17,5 @@ command:
 
 
 # wandb sweep --project klweightsweeps sweeps.yaml
-# wandb agent --count 10 moonllx1175-hit/klweightsweeps/t47wwg7i
+# wandb agent --count 5 moonllx1175-hit/klweightsweeps/85s0h8bg
 
