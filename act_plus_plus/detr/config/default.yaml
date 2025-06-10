@@ -1,7 +1,7 @@
 policy_class: act_policy
-# task_name: pick_and_lift_norot
+task_name: pick_and_lift_norot
 # task_name: push_button
-task_name: pick_and_lift
+# task_name: pick_and_lift
 
 # ------------------ 采样 重现 评估 ------------------
 mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
@@ -20,7 +20,7 @@ data_sampler_config:
     # - right_shoulder_camera
     - overhead_camera
   static_positions: false
-  workspace_static: true
+  workspace_static: true    
   headless: false
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
 

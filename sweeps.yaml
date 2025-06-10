@@ -7,15 +7,16 @@ metric:
   name: l1
 parameters:
   kl_weight:
-    values: [1, 2, 3, 4, 5 ,7 , 11, 17, 36, 46, 47]
+    values: [1,3,5,7,10,15,20]
     # min: 10
     # max: 50
 command:
   - python
   - act_training.py
-  - --config-name=act_config_fwo_sweeps.yaml
+  - --config-name=default_sweep_kl.yaml
 
 
 # wandb sweep --project klweightsweeps sweeps.yaml
-# wandb agent --count 5 moonllx1175-hit/klweightsweeps/85s0h8bg
+# wandb agent --count 7 moonllx1175-hit/klweightsweeps/mlg1in4b
 
+# wandb agent moonllx1175-hit/klweightsweeps/mlg1in4b  # grid 模式下不用count

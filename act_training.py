@@ -37,9 +37,9 @@ def main(cfg: OmegaConf):
         expr_name = cfg["policy"]['ckpt_dir'].split('/')[-1]
         wandb.init(project=cfg["policy"]['wandb_project_name'], reinit=True, name=expr_name)
         if 'kl_weight' in wandb.config.keys():
-            print(f'【sweeps模式】本次 kl_weight 为: {wandb.config.kl_weight}')
+            print(f'【sweep_kl模式】本次 kl_weight 为: {wandb.config.kl_weight}')
             cfg["policy"]['kl_weight'] = wandb.config.kl_weight
-            cfg["policy"]['ckpt_dir'] = os.path.join(cfg["policy"]['ckpt_dir'], 'kl_weight'+str(wandb.config.kl_weight))
+            cfg["policy"]['ckpt_dir'] = os.path.join(cfg["policy"]['ckpt_dir'], 'kl_'+str(wandb.config.kl_weight))
         else:
             print(f'【单次训练】')
 

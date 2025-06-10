@@ -1,0 +1,7 @@
+defaults:
+  - /default   
+
+policy:
+  ckpt_dir: training/${policy_class}_${task_name}_sweep_kl/${data_sampler_config.save_path_end}
+  wandb_project_name: ${policy_class}_${task_name}_sweep_kl
+
