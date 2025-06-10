@@ -204,9 +204,10 @@ rlbench_imitation_learning
 ├── tools                   # 工具
 ├── weight                  # 权重计算
 ├── backfile                # 备份和弃用文件
-├── data_sampler.py         # 数据收集 重现 测试
+├── data_sampler.py         # 数据收集 重现
 ├── data_proccess.py        # 数据处理
 ├── act_training.py         # 训练
+├── act_eval.py             # 测试
 ├── act_policy_wrapper.py   # 测试用
 ├── bash_train_and_eval.sh  # 批量训练测试
 ├── eval_results.csv        # 测试结果          
@@ -273,18 +274,19 @@ hdf5网页工具  https://myhdf5.hdfgroup.org/
 python act_training.py --config-name=***.yaml
 ```
 
-~~**原始方式已弃用**~~
-
-~~配置依赖 `命令行参数` 和 `data_sampler.yaml 中 的 ['act_policy']['task_config']`~~
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python act_plus_plus/imitate_episodes.py --task_name pick_and_lift --ckpt_dir training/pick_and_lift/20demos_hdf5_4_4000_fwo  --policy_class ACT --kl_weight 10 --chunk_size 100 --hidden_dim 512 --batch_size 4 --dim_feedforward 3200 --lr 1e-5 --seed 0 --num_steps 4000
-```
-
 ## 仿真测试
 
+使用 `--ckpt` 指定需要测试的训练结果
+
 ```bash
-python data_sampler.py --config-name=***.yaml
+python act_eval.py --ckpt training/act_policy_pick_and_lift/100demos
+
+# 其他参数：
+--episode_len, default=250
+--ckpt_name, default='policy_last.ckpt'
+--show_3D_state, default=False
+--show_transform_attention, default=False
+--temporal_agg, default=False
 ```
 
 ## 参数扫描

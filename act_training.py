@@ -22,7 +22,8 @@ e = IPython.embed
 @hydra.main(
     version_base=None,
     config_path=str(pathlib.Path(__file__).parent.joinpath(
-        'act_plus_plus', 'detr', 'config'))
+        'act_plus_plus', 'detr', 'config')),
+    config_name="default"
 )
 
 
@@ -30,17 +31,19 @@ def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
     # 主函数，处理命令行参数并执行训练或评估
     set_seed(1)
-    args = cfg["policy"]
-    # 如果是sweep模式，提取操作 args 参数
-    if not args['eval'] and args['use_wandb']:
-        expr_name = args['ckpt_dir'].split('/')[-1]
-        wandb.init(project=args['wandb_project_name'], reinit=True, name=expr_name)
+
+    # 如果是sweep模式，提取操作 cfg["policy"] 参数
+    if cfg["policy"]['use_wandb']:
+        expr_name = cfg["policy"]['ckpt_dir'].split('/')[-1]
+        wandb.init(project=cfg["policy"]['wandb_project_name'], reinit=True, name=expr_name)
         if 'kl_weight' in wandb.config.keys():
             print(f'【sweeps模式】本次 kl_weight 为: {wandb.config.kl_weight}')
-            args['kl_weight'] = wandb.config.kl_weight
-            args['ckpt_dir'] = os.path.join(args['ckpt_dir'], 'kl_weight'+str(wandb.config.kl_weight))
+            cfg["policy"]['kl_weight'] = wandb.config.kl_weight
+            cfg["policy"]['ckpt_dir'] = os.path.join(cfg["policy"]['ckpt_dir'], 'kl_weight'+str(wandb.config.kl_weight))
         else:
             print(f'【单次训练】')
+
+    args = cfg["policy"]
 
     # 解析命令行参数
     ckpt_dir = args['ckpt_dir']
@@ -67,7 +70,7 @@ def main(cfg: OmegaConf):
         os.makedirs(ckpt_dir)
         print(f"创建目录: {ckpt_dir}")
     config_save_path = os.path.join(ckpt_dir, "training_config.yaml")
-    OmegaConf.save(config=args, f=config_save_path, resolve=True)
+    OmegaConf.save(config=cfg, f=config_save_path, resolve=True)
     print(f"本次运行配置已保存到: {config_save_path}")
 
     policy_config = args
@@ -123,7 +126,6 @@ def train_bc(train_dataloader, val_dataloader, config):
     ckpt_dir = policy_config['ckpt_dir']
     seed = policy_config['seed']
     policy_class = policy_config['policy_class']
-    eval_every = policy_config['eval_every']
     validate_every = policy_config['validate_every']
     save_every = policy_config['save_every']
     use_wandb = policy_config['use_wandb']

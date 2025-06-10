@@ -64,7 +64,7 @@ class RLBenchProcessor:
             self.save_path_end = str_time
         else:
             self.variation_path = os.path.join(task_path, self.save_path_end)
-   
+
         if self.mode == "act_eval":
             act_policy_config = config['policy']
             self.camera_names_forward = act_policy_config['camera_names']
@@ -731,7 +731,7 @@ class RLBenchProcessor:
                         obs, reward, terminate = self.task.step(action)
 
 
-                        if self.taskname == "pick_and_lift_small_size":
+                        if self.taskname == "pick_and_lift_small_size" or self.taskname == "pick_and_lift":
                             low_dim_state = self.task._task.get_low_dim_state()
                             print(f"low_dim_state: {low_dim_state}")
                             all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
@@ -899,6 +899,7 @@ class RLBenchProcessor:
         'act_plus_plus', 'detr', 'config')),
     config_name="default"
 )
+
 def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)
     processor = RLBenchProcessor(cfg)

@@ -21,7 +21,7 @@ import cv2
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 class RawToHDF5Converter:
-    def __init__(self, input_path, output_path, image_width=640, image_height=480,taskname=None):
+    def __init__(self, input_path, output_path, image_width=640, image_height=480,taskname=None,cameraclass=[]):
         self.input_path = input_path
         self.output_path = output_path
         self.camera_names = []
@@ -30,6 +30,7 @@ class RawToHDF5Converter:
         self.image_width = image_width
         self.image_height = image_height
         self.taskname = taskname
+        self.cameraclass = cameraclass
         
     def convert(self, max_workers=None):
         folders = [f for f in os.listdir(self.input_path) if os.path.isdir(os.path.join(self.input_path, f))]
@@ -40,6 +41,22 @@ class RawToHDF5Converter:
         
         print(f"找到以下文件夹: {folders}")
         print(f"共计 {len(folders)} 个文件夹需要处理")
+        
+        # 提前检测相机文件夹
+        self.camera_names = []
+        # 使用第一个文件夹作为参考来检测相机文件夹
+        if folders:
+            folder_path = os.path.join(self.input_path, folders[0])
+            for f in os.listdir(folder_path):
+                if os.path.isdir(os.path.join(folder_path, f)):
+                    for end in self.cameraclass:
+                        if f.endswith(end):
+                            self.camera_names.append(f)
+                            print(f"选择相机文件夹: {f}")
+        
+        if not self.camera_names:
+            print("警告: 没有找到符合条件的相机文件夹")
+            return
         
         max_sequence_length = 0
         print("正在计算最长序列长度...")
@@ -73,22 +90,8 @@ class RawToHDF5Converter:
             folder_path = os.path.join(self.input_path, folder_name)
             
             local_datas = {}
-            local_camera_names = []  # 需要转换的相机
-            local_mask_names = []
-            local_rgb_names = []
-            local_depth_names = []
-
-            for f in os.listdir(folder_path):
-                if os.path.isdir(os.path.join(folder_path, f)):
-                    if f.endswith('depth'):
-                        local_depth_names.append(f)
-                        local_camera_names.append(f)
-                    elif f.endswith('mask'):
-                        local_mask_names.append(f)
-                        local_camera_names.append(f)
-                    elif f.endswith('camera'):
-                        local_rgb_names.append(f)
-                        local_camera_names.append(f)
+            # 直接使用提前检测好的相机名称
+            local_camera_names = self.camera_names
                         
             # 初始化数据字典
             local_datas = {
@@ -98,16 +101,16 @@ class RawToHDF5Converter:
                 '/observations/robot_joint_vel': [],
                 '/robot_joint_action': [],
             }
+
+            # 存储上一帧的RGB图像,用于计算光流
+            prev_frames = {}
+
             for cam_name in local_camera_names:
                 local_datas[f'/observations/images/{cam_name}'] = []
                 # 为RGB相机添加光流字典项
                 if cam_name.endswith('camera'):
+                    prev_frames[cam_name] = None
                     local_datas[f'/observations/images/{cam_name}_flow'] = []
-        
-            # 存储上一帧的RGB图像,用于计算光流
-            prev_frames = {}
-            for cam_name in local_rgb_names:
-                prev_frames[cam_name] = None
         
             # 读取状态文件
             json_path = os.path.join(folder_path, 'state.json')
@@ -162,7 +165,7 @@ class RawToHDF5Converter:
                     img_array = np.array(img)
 
                     if cam_name.endswith('mask'):
-                        if self.taskname == "pick_and_lift_small_size":
+                        if self.taskname == "pick_and_lift_small_size" or self.taskname == "pick_and_lift":
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
                             mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
@@ -320,6 +323,7 @@ def main(cfg: OmegaConf):
     image_width = data_proccess_config['image_width']
     image_height = data_proccess_config['image_height']
     max_workers = data_proccess_config['threads']
+    cameraclass = data_proccess_config['cameraclass']
 
     # 计算路径
     task_path = os.path.join(save_path_head, taskname)
@@ -350,7 +354,8 @@ def main(cfg: OmegaConf):
     converter = RawToHDF5Converter(input_path, output_path,
                                    image_width=image_width,
                                    image_height=image_height,
-                                   taskname=taskname)
+                                   taskname=taskname,
+                                   cameraclass=cameraclass)
 
     # 如果未指定线程数,使用处理器核心数
     if max_workers is None:

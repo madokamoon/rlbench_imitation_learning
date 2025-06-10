@@ -1,6 +1,6 @@
 policy_class: act_policy
-# task_name: pick_and_lift_small_size
-task_name: push_button
+task_name: pick_and_lift
+# task_name: push_button
 
 # ------------------ 采样 重现 评估 ------------------
 mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
@@ -10,7 +10,7 @@ data_sampler_config:
   save_path_end: '100demos'
   num_demos: 100
   image:
-    width: 640
+    width: 640  
     height: 480
   cameras:
     - front_camera
@@ -18,7 +18,6 @@ data_sampler_config:
     # - left_shoulder_camera
     # - right_shoulder_camera
     - overhead_camera
-  # 启用后所有demo的初始物体位置一样
   static_positions: false
   headless: false
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
@@ -31,41 +30,43 @@ data_proccess_config:
   image_width: ${data_sampler_config.image.width}
   image_height: ${data_sampler_config.image.height}
   threads: null # 并行处理的线程数
+  cameraclass:
+    - camera
+    # - mask
+    # - depth
 
-# ------------------ 训练 评估 ------------------
+# ------------------ 训练 ------------------
 policy:
   # -------** 通用 **-------
   policy_class: ${policy_class}
   task_name: ${task_name}
   dataloader_name: act_dataloader
   model_name: act_model
-  ckpt_dir: training/${policy_class}_${task_name}/100demos_bs8_s2000_test
+  ckpt_dir: training/${policy_class}_${task_name}/100demos
   camera_names:
     - front_camera
     - wrist_camera
     # - left_shoulder_camera
     # - right_shoulder_camera
     - overhead_camera
-  eval: false
   ckpt_dir_end: null    #如果设置为null，则训练和测试都不会加入时间戳，否则，训练时自动加入时间戳，测试时需要正确填写时间戳
   use_weight: false
-
   onscreen_render: false
   real_robot: false
   # -------Eval-------
-  episode_len: 100  # 只影响评估
-  ckpt_name: 'policy_last.ckpt'
-  show_3D_state: false
-  show_transform_attention: false
-  temporal_agg: false
+  # episode_len: 250  # 只影响评估
+  # ckpt_name: 'policy_last.ckpt'
+  # show_3D_state: false
+  # show_transform_attention: false
+  # temporal_agg: false
   # -------Training-------
   ## ** 基础设置 **
-  dataset_dir: data/${task_name}/100demos_hdf5
+  dataset_dir: data/${task_name}/${data_sampler_config.save_path_end}_hdf5  # 如果收集时候留空了，这里要正确填写时间戳
   use_wandb: true
-  wandb_project_name: ${task_name}
+  wandb_project_name: ${policy_class}_${task_name}
   batch_size: 8
   seed: 0
-  num_steps: 2000
+  num_steps: 10000
   train_ratio: 0.99
   ## 网络架构设置
   state_dim: 8
@@ -78,9 +79,9 @@ policy:
   load_pretrain: False
   resume_ckpt_path: null #建议使用这个
   ## 输出设置
-  eval_every: 2000
-  validate_every: 2000
-  save_every: 2000
+  eval_every: 5000
+  validate_every: 5000
+  save_every: 5000
   ## 不知道有啥用但是保留了
   skip_mirrored_data: false
   actuator_network_dir: null
