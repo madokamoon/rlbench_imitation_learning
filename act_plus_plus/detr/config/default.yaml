@@ -54,11 +54,11 @@ policy:
   onscreen_render: false
   real_robot: false
   # -------Eval-------
-  # episode_len: 250  # 只影响评估
-  # ckpt_name: 'policy_last.ckpt'
-  # show_3D_state: false
-  # show_transform_attention: false
-  # temporal_agg: false
+  episode_len: 250  
+  ckpt_name: 'policy_last.ckpt'
+  show_3D_state: false
+  show_transform_attention: false
+  temporal_agg: false
   # -------Training-------
   ## ** 基础设置 **
   dataset_dir: data/${task_name}/${data_sampler_config.save_path_end}_hdf5  # 如果收集时候留空了，这里要正确填写时间戳

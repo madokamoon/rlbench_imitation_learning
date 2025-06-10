@@ -634,8 +634,6 @@ class RLBenchProcessor:
             tuple: (成功率, 平均步骤数)
         """
         import traceback  # 导入traceback模块
-        from weight.weight import calculate_change_weight
-
 
         error_counts = 0 
         all_attempt_steps = [] 
@@ -685,37 +683,39 @@ class RLBenchProcessor:
                     print(f"robot_state_:{formatted_state}")
                     robot_state_copy = robot_state.copy()  
                 
-                    if self.use_weight :
-                        view_weights = []
-                        if prev_images is not None:
-                            print("计算视角变化权重：")
-                            for cam_name in self.camera_names_forward:
-                                if cam_name in imgdata:
-                                    curr_img = imgdata[f"{cam_name}_mask"]
-                                    prev_img = prev_images[f"{cam_name}_mask"]
-                                    # 计算变化权重
-                                    weight = calculate_change_weight(prev_img, curr_img)
-                                    view_weights.append(weight)
-                                    print(f"  - {cam_name}: {weight:.4f}")
+                    # if self.use_weight :
+                    #     view_weights = []
+                    #     if prev_images is not None:
+                    #         print("计算视角变化权重：")
+                    #         for cam_name in self.camera_names_forward:
+                    #             if cam_name in imgdata:
+                    #                 curr_img = imgdata[f"{cam_name}_mask"]
+                    #                 prev_img = prev_images[f"{cam_name}_mask"]
+                    #                 # 计算变化权重
+                    #                 weight = calculate_change_weight(prev_img, curr_img)
+                    #                 view_weights.append(weight)
+                    #                 print(f"  - {cam_name}: {weight:.4f}")
                             
-                            # 归一化权重，确保总和为相机数量（平均权重为1）
-                            total_weight = sum(view_weights)
-                            norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
-                            print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
-                            actaction,costtime = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
-                        else:
-                            print("没有上一帧图像")
-                            actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
+                    #         # 归一化权重，确保总和为相机数量（平均权重为1）
+                    #         total_weight = sum(view_weights)
+                    #         norm_view_weights = [w * len(view_weights) / total_weight for w in view_weights]
+                    #         print(f"归一化视角权重: {[f'{w:.4f}' for w in norm_view_weights]}")
+                    #         actaction,costtime = self.act_policy.get_actions(imgdata, robot_state, view_weights=norm_view_weights)
+                    #     else:
+                    #         print("没有上一帧图像")
+                    #         actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
                             
-                        # 保存当前帧作为下一次迭代的上一帧
-                        prev_images = {}
-                        for cam_name in self.camera_names_forward:
-                            if cam_name in imgdata:
-                                prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
+                    #     # 保存当前帧作为下一次迭代的上一帧
+                    #     prev_images = {}
+                    #     for cam_name in self.camera_names_forward:
+                    #         if cam_name in imgdata:
+                    #             prev_images[f"{cam_name}_mask"] = imgdata[f"{cam_name}_mask"].copy()
 
-                    else:
-                        actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
+                    # else:
+                    #     actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
                         
+                    actaction,costtime = self.act_policy.get_actions(imgdata, robot_state)
+                    
                     if costtime is not None:   
                         all_frame_data['costtime'].append(costtime)
 

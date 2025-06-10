@@ -1,0 +1,7 @@
+defaults:
+  - /default   
+
+policy_class: act_policy_smooth_attention
+policy:
+  ckpt_dir: training/${policy_class}_${task_name}/100demos
+  attn_smooth_weight: 1
