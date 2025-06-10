@@ -52,6 +52,7 @@ class RLBenchProcessor:
         self.image_height = data_sampler_config['image']['height']
         self.camera_names = data_sampler_config['cameras']
         self.static_positions = data_sampler_config['static_positions']
+        self.workspace_static = data_sampler_config['workspace_static']
         self.headless = data_sampler_config['headless']
         self.robot_init_state = data_sampler_config['robot_init_state']
         
@@ -219,7 +220,7 @@ class RLBenchProcessor:
             action_mode=action_mode,
             obs_config=self.obs_config, 
             headless=self.headless,
-            static_positions = False
+            static_positions = self.workspace_static
         )
             
         # 使用sim模块直接设置物理引擎参数 
