@@ -33,7 +33,7 @@ coppeliaSim.sh
 ## 安装RLBench
 
 启用一个IL算法conda环境，无python版本要求，这里启用下面创建的 rlact
-```
+```bash
 conda activate rlact
 cd RLBench
 pip install -e .
@@ -42,8 +42,54 @@ pip install -e .
 
 ```
 测试
-```
+```bash
 python RLBench/tools/task_builder.py
+```
+
+## 使用虚拟显示器运行 CoppeliaSim
+
+注意：使用--use-display-device=None参数会告诉NVIDIA驱动忽略任何物理连接的显示设备，而只使用虚拟显示器
+
+```bash
+sudo nvidia-xconfig -a --use-display-device=None --virtual=1280x1024
+echo -e 'Section "ServerFlags"\n\tOption "MaxClients" "2048"\nEndSection\n' \
+    | sudo tee /etc/X11/xorg.conf.d/99-maxclients.conf
+```
+
+
+然后，当你想要运行 RLBench 时，启动 X
+```bash
+# nohup and disown is important for the X server to keep running in the background
+sudo nohup X :99 & disown
+```
+
+使用 glxgears 测试你的显示是否正常工作
+
+如果你有多个 GPU，你可以通过以下方式选择你的 GPU 测试
+```bash
+DISPLAY=:99 glxgears
+DISPLAY=:99.<gpu_id> glxgears
+DISPLAY=:99.3 glxgears
+```
+
+
+在运行python的时候，首先要指定显示器
+```bash
+export DISPLAY=:99
+python data_sampler.py
+```
+
+
+显示/关闭虚拟显示器进程
+```bash
+ps aux | grep "X :99"
+sudo kill [PID号]
+sudo pkill -f "X :99"
+```
+
+恢复原始X配置,连接物理显示器
+```bash
+sudo rm /etc/X11/xorg.conf
 ```
 
 ## 安装act-plus
