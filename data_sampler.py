@@ -557,8 +557,8 @@ class RLBenchProcessor:
             # 处理掩码图像
             # 创建空白RGB图像
             img_array = mask_img
-            
-            if self.taskname == "pick_and_lift_small_size":
+
+            if self.taskname.startswith("pick_and_lift"):
                 mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                 # 根据灰度值设置不同的RGB值
                 mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
@@ -681,7 +681,7 @@ class RLBenchProcessor:
                     # 处理观察获取图像和状态
                     imgdata, robot_state = self.eval_process_observation(obs)
                     formatted_state = [f"{val:8.5f}" for val in robot_state]
-                    print(f"robot_state_:{formatted_state}")
+                    # print(f"robot_state_:{formatted_state}")
                     robot_state_copy = robot_state.copy()  
                 
                     # if self.use_weight :
@@ -728,18 +728,18 @@ class RLBenchProcessor:
                     try:
                         action = np.concatenate([position, quat, [gripper_joint_position]]).astype(np.float32)
                         formatted_action = [f"{val:8.5f}" for val in action]
-                        print(f"robot_action:{formatted_action}")
+                        # print(f"robot_action:{formatted_action}")
                         obs, reward, terminate = self.task.step(action)
 
 
-                        if self.taskname == "pick_and_lift_small_size" or self.taskname == "pick_and_lift":
+                        if self.taskname.startswith("pick_and_lift"):
                             low_dim_state = self.task._task.get_low_dim_state()
-                            print(f"low_dim_state: {low_dim_state}")
+                            # print(f"low_dim_state: {low_dim_state}")
                             all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
                             all_frame_data['object_target_dis'].append(np.linalg.norm(low_dim_state[0:3] - low_dim_state[3:6] ))
                         else:
                             low_dim_state = self.task._task.target_button.get_position()
-                            print(f"low_dim_state: {low_dim_state}")
+                            # print(f"low_dim_state: {low_dim_state}")
                             all_frame_data['gripper_object_dis'].append(np.linalg.norm(robot_state_copy[0:3] - low_dim_state[0:3] ))
                             all_frame_data['object_target_dis'].append(1.0)
                         # 检查任务状态
