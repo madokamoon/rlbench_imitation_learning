@@ -34,7 +34,7 @@ data_proccess_config:
   threads: null # 并行处理的线程数
   cameraclass:
     - camera
-    # - mask
+    - mask
     # - depth
 
 # ------------------ 训练 ------------------

@@ -47,12 +47,20 @@ class RawToHDF5Converter:
         # 使用第一个文件夹作为参考来检测相机文件夹
         if folders:
             folder_path = os.path.join(self.input_path, folders[0])
-            for f in os.listdir(folder_path):
-                if os.path.isdir(os.path.join(folder_path, f)):
-                    for end in self.cameraclass:
-                        if f.endswith(end):
-                            self.camera_names.append(f)
-                            print(f"选择相机文件夹: {f}")
+
+            for end in self.cameraclass:
+                for f in os.listdir(folder_path):
+                    if os.path.isdir(os.path.join(folder_path, f)):
+                            if f.endswith(end):
+                                self.camera_names.append(f)
+                                print(f"选择相机文件夹: {f}")
+
+            # for f in os.listdir(folder_path):
+            #     if os.path.isdir(os.path.join(folder_path, f)):
+            #         for end in self.cameraclass:
+            #             if f.endswith(end):
+            #                 self.camera_names.append(f)
+            #                 print(f"选择相机文件夹: {f}")
         
         if not self.camera_names:
             print("警告: 没有找到符合条件的相机文件夹")
