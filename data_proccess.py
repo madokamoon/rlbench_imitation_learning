@@ -318,6 +318,14 @@ class RawToHDF5Converter:
                         dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
                         # compression='gzip', compression_opts=2, shuffle=True)
                         )
+                    _ = image.create_dataset(f"{cam_name}_attention_uni", (max_timesteps, self.image_height, self.image_width, 3), 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
+                        # compression='gzip', compression_opts=2, shuffle=True)
+                        )
+                    _ = image.create_dataset(f"{cam_name}_attention", (max_timesteps, self.image_height, self.image_width, 3), 
+                        dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
+                        # compression='gzip', compression_opts=2, shuffle=True)
+                        )
                 elif cam_name.endswith('camera'):
                     _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
                         dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
