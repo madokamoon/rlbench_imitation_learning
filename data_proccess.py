@@ -13,7 +13,8 @@ import glob
 import time, datetime
 import hydra
 from omegaconf import OmegaConf
-import cv2  
+import cv2
+import matplotlib.pyplot as plt
 
 # 导入权重计算函数
 
@@ -111,6 +112,10 @@ class RawToHDF5Converter:
                 if cam_name.endswith('camera'):
                     prev_frames[cam_name] = None
                     local_datas[f'/observations/images/{cam_name}_flow'] = []
+                # 添加字典项
+                if cam_name.endswith('mask'):
+                    local_datas[f'/observations/images/{cam_name}_attention'] = []
+                    local_datas[f'/observations/images/{cam_name}_attention_uni'] = []
         
             # 读取状态文件
             json_path = os.path.join(folder_path, 'state.json')
@@ -179,6 +184,33 @@ class RawToHDF5Converter:
                             mask_rgb_array[(img_array == 85) | (img_array == 86), 1] = 255
                             mask_rgb_array[(img_array == 81) , 2] = 255
                             img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+                        elif self.taskname == "pick_and_lift_norot_wzf":
+                            # # 保存应该关注的mask，机械臂、物体和终点，对应的真实RGB
+                            # mask_real_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            # mask_real_array[(img_array == 35) | (img_array == 31) | (img_array == 34)] = 255
+                            # mask_real_array[img_array == 84] = 255
+                            # mask_real_array[img_array == 83] = 255
+
+                            # 保存应该关注的mask，机械臂、物体和终点，全通道255
+                            mask_attention_uni_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            mask_attention_uni_array[(img_array == 35) | (img_array == 31) | (img_array == 34)] = 255
+                            mask_attention_uni_array[img_array == 84] = 255
+                            mask_attention_uni_array[img_array == 83] = 255
+                            mask_attention_uni_array = np.clip(mask_attention_uni_array, 0, 255).astype(np.uint8)
+                            local_datas[f'/observations/images/{cam_name}_attention_uni'].append(mask_attention_uni_array)
+                            # 保存应该关注的mask，机械臂、物体和终点，人为编码
+                            mask_attention_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            mask_attention_array[(img_array == 35) | (img_array == 31) | (img_array == 34), 0] = 255
+                            mask_attention_array[img_array == 84, 1] = 255
+                            mask_attention_array[img_array == 83, 2] = 255
+                            mask_attention_array = np.clip(mask_attention_array, 0, 255).astype(np.uint8)
+                            local_datas[f'/observations/images/{cam_name}_attention'].append(mask_attention_array)
+                            # 保存全分割，三通道都是相同的灰度值
+                            mask_all_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            mask_all_rgb_array = img_array[..., None]
+                            mask_all_rgb_array = np.clip(mask_all_rgb_array, 0, 255).astype(np.uint8)
+                            img_array = np.clip(mask_all_rgb_array, 0, 255).astype(np.uint8)
+
 
                     # 保存图像到对应的字典
                     local_datas[f'/observations/images/{cam_name}'].append(img_array)
