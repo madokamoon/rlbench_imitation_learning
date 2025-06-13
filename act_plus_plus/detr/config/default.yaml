@@ -31,7 +31,7 @@ data_proccess_config:
   taskname: ${task_name}
   image_width: ${data_sampler_config.image.width}
   image_height: ${data_sampler_config.image.height}
-  threads: 1 # 并行处理的线程数
+  threads: 5 # 并行处理的线程数
   cameraclass:
     - camera
     - mask

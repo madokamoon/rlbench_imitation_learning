@@ -124,7 +124,8 @@ class RawToHDF5Converter:
                 if cam_name.endswith('mask'):
                     local_datas[f'/observations/images/{cam_name}_attention'] = []
                     local_datas[f'/observations/images/{cam_name}_attention_uni'] = []
-        
+                    local_datas[f'/observations/images/{cam_name}_real'] = []
+
             # 读取状态文件
             json_path = os.path.join(folder_path, 'state.json')
             if not os.path.exists(json_path):
@@ -178,20 +179,7 @@ class RawToHDF5Converter:
                     img_array = np.array(img)
 
                     if cam_name.endswith('mask'):
-                        if self.taskname.startswith("pick_and_lift"):
-                            mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
-                            # 根据灰度值设置不同的RGB值
-                            # mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
-                            # mask_rgb_array[img_array == 84, 1] = 255
-                            # mask_rgb_array[img_array == 83, 2] = 255
-                            # img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
-                            # 相关物体全部设置为白色
-                            target_values = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
-                            mask = np.isin(img_array, target_values)
-                            mask_rgb_array[mask] = 255  # 一次性设置所有匹配像素的所有通道为白色
-                            img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
-
-                        elif self.taskname.startswith("push_button"):
+                        if self.taskname.startswith("push_button"):
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
                             mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
@@ -199,26 +187,25 @@ class RawToHDF5Converter:
                             mask_rgb_array[(img_array == 81) , 2] = 255
                             img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
                         elif self.taskname == "pick_and_lift_norot_wzf":
-                            # # 保存应该关注的mask，机械臂、物体和终点，对应的真实RGB
-                            # mask_real_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
-                            # mask_real_array[(img_array == 35) | (img_array == 31) | (img_array == 34)] = 255
-                            # mask_real_array[img_array == 84] = 255
-                            # mask_real_array[img_array == 83] = 255
-
+                            attention_ids = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
+                            mask = np.isin(img_array, attention_ids)
+                            # 保存应该关注的mask，机械臂、物体和终点，对应的真实RGB
+                            mask_real_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                            rgb_image = np.array(copy.deepcopy(local_datas[f'/observations/images/{cam_name}'.replace("_mask", "")][-1]))
+                            mask_real_array[mask] = rgb_image[mask]
+                            mask_real_array = np.clip(mask_real_array, 0, 255).astype(np.uint8)
+                            local_datas[f'/observations/images/{cam_name}_real'].append(mask_real_array)
                             # 保存应该关注的mask，机械臂、物体和终点，全通道255
                             mask_attention_uni_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
-                            mask_attention_uni_array[(img_array == 35) | (img_array == 31) | (img_array == 34)] = 255
-                            mask_attention_uni_array[img_array == 84] = 255
-                            mask_attention_uni_array[img_array == 83] = 255
+                            mask_attention_uni_array[mask] = 255
                             mask_attention_uni_array = np.clip(mask_attention_uni_array, 0, 255).astype(np.uint8)
                             local_datas[f'/observations/images/{cam_name}_attention_uni'].append(mask_attention_uni_array)
                             # 保存应该关注的mask，机械臂、物体和终点，人为编码
                             mask_attention_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
-                            mask_attention_array[(img_array == 35) | (img_array == 31) | (img_array == 34), 0] = 255
-                            mask_attention_array[img_array == 84, 1] = 255
-                            mask_attention_array[img_array == 83, 2] = 255
+                            mask_attention_array[mask] = img_array[mask, None]
                             mask_attention_array = np.clip(mask_attention_array, 0, 255).astype(np.uint8)
                             local_datas[f'/observations/images/{cam_name}_attention'].append(mask_attention_array)
+
                             # 保存全分割，三通道都是相同的灰度值
                             mask_all_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             mask_all_rgb_array = img_array[..., None]
@@ -326,6 +313,11 @@ class RawToHDF5Converter:
                         dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
                         # compression='gzip', compression_opts=2, shuffle=True)
                         )
+                    _ = image.create_dataset(f"{cam_name}_real",
+                         (max_timesteps, self.image_height, self.image_width, 3),
+                         dtype='uint8', chunks=(1, self.image_height, self.image_width, 3),
+                         # compression='gzip', compression_opts=2, shuffle=True)
+                         )
                 elif cam_name.endswith('camera'):
                     _ = image.create_dataset(cam_name, (max_timesteps, self.image_height, self.image_width, 3), 
                         dtype='uint8', chunks=(1, self.image_height, self.image_width, 3), 
