@@ -62,9 +62,16 @@ class ACTPolicy(nn.Module):
             a_hat, is_pad_hat,  (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
             if show_attn_weights:
                 import cv2
-                final_image = visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
-                cv2.imwrite("attention_vis/show_attention.png", cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
-                print("已保存多查询注意力可视化: attention_vis/show_attention.png")
+                import os
+
+                os.makedirs("attention_vis", exist_ok=True)
+                for layer_idx in range(0, 7):
+                    final_image = visualize_multiple_attentions(curr_image, attn_weights,layer_idx=layer_idx,num_queries=10)
+                    filename = f"attention_layer_{abs(layer_idx)}.png"
+                    filepath = os.path.join("attention_vis", filename)
+                    cv2.imwrite(filepath, cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
+                    print(f"已保存第{abs(layer_idx)}层的多查询注意力可视化: {filepath}")
+                
                 input("Press Enter to continue...")
             return a_hat
 

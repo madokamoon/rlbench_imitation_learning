@@ -4,7 +4,10 @@ defaults:
 policy_class: act_policy_smooth_flow
 policy:
   dataloader_name: act_flow_dataloader
-  ckpt_dir: training/${policy_class}_${task_name}/${data_sampler_config.save_path_end}
+  ckpt_dir: training/${policy_class}_${task_name}/${data_sampler_config.save_path_end}_kl_1_chunk_20
   wandb_project_name: ${policy_class}_${task_name}
   attn_smooth_weight: 1
   flow_attn_weight: 1
+  use_wandb: false
+  kl_weight: 1
+  chunk_size: 20

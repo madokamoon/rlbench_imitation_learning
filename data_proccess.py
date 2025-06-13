@@ -165,14 +165,20 @@ class RawToHDF5Converter:
                     img_array = np.array(img)
 
                     if cam_name.endswith('mask'):
-                        if self.taskname == "pick_and_lift_small_size" or self.taskname == "pick_and_lift":
+                        if self.taskname.startswith("pick_and_lift"):
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
-                            mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
-                            mask_rgb_array[img_array == 84, 1] = 255
-                            mask_rgb_array[img_array == 83, 2] = 255
+                            # mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                            # mask_rgb_array[img_array == 84, 1] = 255
+                            # mask_rgb_array[img_array == 83, 2] = 255
+                            # img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+                            # 相关物体全部设置为白色
+                            target_values = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
+                            mask = np.isin(img_array, target_values)
+                            mask_rgb_array[mask] = 255  # 一次性设置所有匹配像素的所有通道为白色
                             img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
-                        elif self.taskname == "push_button":
+
+                        elif self.taskname.startswith("push_button"):
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
                             mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
