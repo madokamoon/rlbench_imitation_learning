@@ -65,3 +65,8 @@ act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,kl_7,2025-06-11
 act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,kl_10,2025-06-11-14-05-02,False,250,50,0.34,0.12,172,80,0.041,0.227,0.04
 act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,kl_15,2025-06-11-14-20-44,False,250,50,0.26,0.24,159,84,0.04,0.228,0.041
 act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,kl_20,2025-06-11-17-10-13,False,250,50,0.4,0.12,163,90,0.043,0.199,0.039
+act_policy,pick_and_lift_norot,policy_last.ckpt,100demos_static_vis,2025-06-13-12-48-56,False,250,50,0.42,0.02,183,99,0.04,0.192,0.038
+act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,100demos_static_vis,2025-06-13-13-04-05,False,250,50,0.32,0.1,178,87,0.037,0.209,0.036
+act_policy_smooth_attention,pick_and_lift_norot,policy_last.ckpt,100demos_static_vis_eval,2025-06-13-13-19-32,False,250,50,0.34,0.06,181,83,0.038,0.204,0.036
+act_policy_smooth_flow,pick_and_lift_norot,policy_last.ckpt,100demos_static_vis,2025-06-13-13-33-39,False,250,50,0.26,0.26,159,87,0.044,0.227,0.034
+act_policy_smooth_flow,pick_and_lift_norot,policy_last.ckpt,100demos_static_vis,2025-06-13-14-41-11,False,250,50,0.26,0.28,156,105,0.047,0.232,0.038

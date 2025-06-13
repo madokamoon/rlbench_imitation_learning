@@ -48,12 +48,20 @@ class RawToHDF5Converter:
         # 使用第一个文件夹作为参考来检测相机文件夹
         if folders:
             folder_path = os.path.join(self.input_path, folders[0])
-            for f in os.listdir(folder_path):
-                if os.path.isdir(os.path.join(folder_path, f)):
-                    for end in self.cameraclass:
-                        if f.endswith(end):
-                            self.camera_names.append(f)
-                            print(f"选择相机文件夹: {f}")
+
+            for end in self.cameraclass:
+                for f in os.listdir(folder_path):
+                    if os.path.isdir(os.path.join(folder_path, f)):
+                            if f.endswith(end):
+                                self.camera_names.append(f)
+                                print(f"选择相机文件夹: {f}")
+
+            # for f in os.listdir(folder_path):
+            #     if os.path.isdir(os.path.join(folder_path, f)):
+            #         for end in self.cameraclass:
+            #             if f.endswith(end):
+            #                 self.camera_names.append(f)
+            #                 print(f"选择相机文件夹: {f}")
         
         if not self.camera_names:
             print("警告: 没有找到符合条件的相机文件夹")
@@ -170,14 +178,20 @@ class RawToHDF5Converter:
                     img_array = np.array(img)
 
                     if cam_name.endswith('mask'):
-                        if self.taskname == "pick_and_lift_small_size" or self.taskname == "pick_and_lift":
+                        if self.taskname.startswith("pick_and_lift"):
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
-                            mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
-                            mask_rgb_array[img_array == 84, 1] = 255
-                            mask_rgb_array[img_array == 83, 2] = 255
+                            # mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
+                            # mask_rgb_array[img_array == 84, 1] = 255
+                            # mask_rgb_array[img_array == 83, 2] = 255
+                            # img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+                            # 相关物体全部设置为白色
+                            target_values = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
+                            mask = np.isin(img_array, target_values)
+                            mask_rgb_array[mask] = 255  # 一次性设置所有匹配像素的所有通道为白色
                             img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
-                        elif self.taskname == "push_button":
+
+                        elif self.taskname.startswith("push_button"):
                             mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                             # 根据灰度值设置不同的RGB值
                             mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255

@@ -42,6 +42,31 @@ class ACTPolicySmoothFLow(nn.Module):
             loss_dict = dict()
             a_hat, is_pad_hat, (mu, logvar), probs, binaries , attn_weights = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
 
+            # if show_attn_weights:
+            #     import cv2
+            #     from datetime import datetime
+                
+            #     # 保存当前训练状态
+            #     training_mode = self.training
+                
+            #     # 临时切换到评估模式并禁用梯度
+            #     self.eval()
+            #     with torch.no_grad():
+            #         # 重新运行以获取更稳定的注意力权重
+            #         _, _, _, _, _, eval_attn_weights = self.model(qpos, image, env_state, actions, is_pad, vq_sample)
+            #         final_image = visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
+                
+            #     # 恢复原来的训练模式
+            #     if training_mode:
+            #         self.train()
+                    
+            #     # 保存图像
+            #     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            #     filename = f"{timestamp}.png"
+            #     os.makedirs("attention_vis/training", exist_ok=True)
+            #     filepath = os.path.join("attention_vis/training", filename)
+            #     cv2.imwrite(filepath, cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
+            #     print(f"已保存多查询注意力可视化: {filepath}")
 
             if self.vq or self.model.encoder is None:
                 total_kld = [torch.tensor(0.0)]
@@ -59,23 +84,45 @@ class ACTPolicySmoothFLow(nn.Module):
             loss_dict['attn_smooth'] = attn_smooth_loss
 
             # 计算并添加光流损失
-            flow_attn_loss, avg_attention_map = compute_flow_attention_loss(attn_weights, flow_data, is_pad)
+            flow_attn_loss, flow_blocks = compute_flow_attention_loss(attn_weights, flow_data, is_pad)
             loss_dict['flow_attn'] = flow_attn_loss
 
+            # loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight + flow_attn_loss * self.flow_attn_weight
+            loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight + loss_dict['attn_smooth'] * self.attn_smooth_weight + flow_attn_loss * self.flow_attn_weight
+
+            print(f"Losses: {loss_dict}")
+            
             if show_attn_weights:
                 import cv2
-                final_image = visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
-                cv2.imwrite("attention_vis/show_attention.png", cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
-                print("已保存多查询注意力可视化: attention_vis/show_attention.png")
+                import os
+                final_image = visualize_multiple_attentions(curr_image, attn_weights, num_queries=10,flow_map=flow_blocks)
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"{timestamp}.png"
+                os.makedirs("attention_vis/training", exist_ok=True)
+                filepath = os.path.join("attention_vis/training", filename)
+                cv2.imwrite(filepath, cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
+                print(f"已保存多查询注意力可视化: {filepath}")
 
-
-            loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight + loss_dict['attn_smooth'] * self.attn_smooth_weight + flow_attn_loss * self.flow_attn_weight
+                # cv2.imwrite("attention_vis/show_attention.png", cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
+                # print("已保存多查询注意力可视化: attention_vis/show_attention.png")
+                # input("Press Enter to continue...")
 
             return loss_dict
         else: # inference time
             a_hat, is_pad_hat,  (mu, logvar), probs, binaries, attn_weights = self.model(qpos, image, env_state, vq_sample=vq_sample)
             if show_attn_weights:
-                visualize_multiple_attentions(curr_image, attn_weights, num_queries=10)
+                import cv2
+                import os
+
+                os.makedirs("attention_vis", exist_ok=True)
+                for layer_idx in range(0, 7):
+                    final_image = visualize_multiple_attentions(curr_image, attn_weights,layer_idx=layer_idx,num_queries=10)
+                    filename = f"attention_layer_{abs(layer_idx)}.png"
+                    filepath = os.path.join("attention_vis", filename)
+                    cv2.imwrite(filepath, cv2.cvtColor(final_image, cv2.COLOR_RGB2BGR))
+                    print(f"已保存第{abs(layer_idx)}层的多查询注意力可视化: {filepath}")
+                
                 input("Press Enter to continue...")
             return a_hat
 
@@ -188,9 +235,6 @@ def compute_flow_attention_loss(attn_weights, flow_data, is_pad=None, layer_idx=
         torch.Tensor: L1损失值
         torch.Tensor: 平均注意力图 [batch_size, 1, total_feats]
     """
-    # 参数检查
-    if flow_data is None:
-        return torch.tensor(0.0, device=attn_weights[0].device)
     
     # 获取特定层的注意力权重
     layer_attn = attn_weights[layer_idx]  # [batch_size, chunk_size, token_num]
@@ -207,7 +251,6 @@ def compute_flow_attention_loss(attn_weights, flow_data, is_pad=None, layer_idx=
     
     # 1. 处理注意力权重 - 跳过前两个非图像token
     query_attn = layer_attn[:, :, 2:2+total_feats]  # 只取需要的特征数量
-    
     # 直接在原始形状上计算掩码平均值
     if is_pad is not None:
         # 创建有效掩码
@@ -223,35 +266,102 @@ def compute_flow_attention_loss(attn_weights, flow_data, is_pad=None, layer_idx=
         # 如果没有提供掩码，直接计算平均值
         avg_attention_map = query_attn.mean(dim=1, keepdim=True)  # [batch_size, 1, total_feats]
     
-    # 2. 处理flow_data - 只取第一个通道并分块平均
+    # 2. 处理flow_data - 先横向拼接相机数据，然后分块平均
     flow_first_channel = flow_data[:, :, 0]  # [batch, cameras, height, width]
+
+    # 对每个batch和每个相机进行归一化处理
+    normalized_flow = torch.zeros_like(flow_first_channel)
+    for b in range(flow_first_channel.shape[0]):  # 遍历每个批次
+        for c in range(flow_first_channel.shape[1]):  # 遍历每个相机
+            # 获取当前batch和相机的光流图
+            current_flow = flow_first_channel[b, c]
+            
+            # 计算最小值和最大值
+            min_val = current_flow.min()
+            max_val = current_flow.max()
+            
+            # 归一化到0-1范围，避免除零错误
+            if max_val > min_val:
+                # 正常归一化
+                normalized_value = (current_flow - min_val) / (max_val - min_val)
+                # print(f'c: {c}, min: {normalized_value.min()}, max: {normalized_value.max()}')
+                # 对第二个相机(索引为1)进行反向归一化(1-值)
+                if c == 61:
+                    normalized_flow[b, c] = (1.0 - normalized_value)/2.0
+                else:
+                    normalized_flow[b, c] = normalized_value
+            else:
+                normalized_flow[b, c] = torch.zeros_like(current_flow)
+
+    # 使用归一化后的光流数据
+    flow_first_channel = normalized_flow
+
     flow_blocks = torch.zeros(batch_size, 1, total_feats, device=flow_data.device)
-    
-    # 计算每个相机的特征宽度
-    cam_feat_w = feat_w // num_cameras  # 每个相机的特征宽度应该是20
     
     # 计算块大小
     block_h = height // feat_h
-    block_w = width // cam_feat_w
+    block_w = width // feat_w
+    cam_feat_w = feat_w  # 每个相机的特征宽度应该是20
     
-    # 使用行优先顺序遍历，与注意力特征保持一致
+    # 首先，将所有相机的光流图拼接到一起（在内存中进行，不实际创建新张量）
+    # 然后，按正确的格式提取块
     idx = 0
-    for i in range(feat_h):  # 先遍历行
-        for cam_idx in range(num_cameras):  # 然后遍历相机
-            for j in range(cam_feat_w):  # 最后遍历每个相机内的列
-                # 计算块位置
-                start_h = i * block_h
-                end_h = min((i + 1) * block_h, height)
-                start_w = j * block_w
-                end_w = min((j + 1) * block_w, width)
-                
-                # 提取块并计算平均值
-                block = flow_first_channel[:, cam_idx, start_h:end_h, start_w:end_w]
-                flow_blocks[:, 0, idx] = block.mean(dim=(1, 2))
-                idx += 1
+    for i in range(feat_h):  # 遍历行
+        for j in range(feat_w * num_cameras):  # 遍历所有拼接后的列
+            # 确定当前位置属于哪个相机
+            cam_idx = j // cam_feat_w
+            local_j = j % cam_feat_w  # 在当前相机内的列索引
+            
+            # 计算块在原始图像中的位置
+            start_h = i * block_h
+            end_h = min((i + 1) * block_h, height)
+            start_w = local_j * block_w
+            end_w = min((local_j + 1) * block_w, width)
+            
+            # 提取块并计算平均值
+            block = flow_first_channel[:, cam_idx, start_h:end_h, start_w:end_w]
+            flow_blocks[:, 0, idx] = torch.amax(block, dim=(1, 2))
+            idx += 1
+    
+    # 对于可视化和调试
+    # 可以将flow_blocks重塑为2D图像
+    # flow_blocks_2d = flow_blocks.reshape(batch_size, 1, feat_h, feat_w * num_cameras)
     
     # 3. 计算L1损失
-    loss = F.l1_loss(avg_attention_map, flow_blocks)
-    
+    # 归一化注意力图
+    batch_size = avg_attention_map.shape[0]
+    normalized_attention = torch.zeros_like(avg_attention_map)
+
+    for b in range(batch_size):
+        # 获取当前批次的注意力图
+        curr_attn = avg_attention_map[b, 0]
+        
+        # 计算最小值和最大值
+        attn_min = curr_attn.min()
+        attn_max = curr_attn.max()
+        
+        # 归一化到0-1范围
+        if attn_max > attn_min:
+            normalized_attention[b, 0] = (curr_attn - attn_min) / (attn_max - attn_min)
+        else:
+            normalized_attention[b, 0] = torch.zeros_like(curr_attn)
+
+    if True:
+        # 直接计算全部区域的L1损失，不使用掩码过滤
+        loss = F.l1_loss(normalized_attention, flow_blocks)
+    else:
+        # 创建掩码，只关注flow_blocks > 0.5的区域
+        flow_mask = (flow_blocks > 0.5).float()
+
+        # 应用掩码到注意力图和flow_blocks
+        masked_attention = normalized_attention * flow_mask
+        masked_flow_blocks = flow_blocks * flow_mask
+
+        # 计算有效元素数量（避免除零错误）
+        valid_elements = flow_mask.sum() + 1e-8
+
+        # 只在掩码区域计算L1损失
+        loss = torch.abs(masked_attention - masked_flow_blocks).sum() / valid_elements
+
     # 明确返回两个值: 损失和平均注意力图
     return loss, flow_blocks

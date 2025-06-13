@@ -13,18 +13,17 @@
 
 
 
-def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx=-1, avg_attention_map=None):
+def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx=-1, flow_map=None):
     """将原始图像和多个查询的注意力热图竖向拼接为一张长条图像"""
     import matplotlib.pyplot as plt
     import os, cv2
     import numpy as np
+    import torch
     from torch.nn.functional import interpolate
-    
-    os.makedirs("attention_vis", exist_ok=True)
-    
+
     # 获取注意力权重和处理批次
     layer_attn = attn_weights[layer_idx]
-    print(f"注意力形状: {layer_attn.shape}, 图像形状: {image.shape}")
+    # print(f"最后一层注意力形状: {layer_attn.shape}, 图像形状: {image.shape}")
     layer_attn_batch0 = layer_attn[0:1]  # 只取第一个批次
     
     # 处理图像和确定相机数量
@@ -33,10 +32,7 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
         height, width = image.shape[3], image.shape[4]
         img_list = [image[0, cam_idx].permute(1, 2, 0).cpu().detach().numpy() * 255.0 for cam_idx in range(num_cameras)]
         original_img = np.concatenate([img.astype(np.uint8) for img in img_list], axis=1)
-    elif len(image.shape) == 4:  # [batch, channels, height, width]
-        num_cameras = 1
-        height, width = image.shape[2], image.shape[3]
-        original_img = (image[0].permute(1, 2, 0).cpu().detach().numpy() * 255.0).astype(np.uint8)
+
     else:
         print(f"不支持的图像形状: {image.shape}")
         return
@@ -57,7 +53,7 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
             attn_tensor = attn_tensor.detach()
             attn_2d = attn_tensor.reshape(feat_h, feat_w)
             attn_min, attn_max = attn_2d.min().item(), attn_2d.max().item()
-            
+            # print(f"{title} 注意力最小值: {attn_min}, 最大值: {attn_max}")
             if attn_max > attn_min:
                 attn_2d = (attn_2d - attn_min) / (attn_max - attn_min)
             else:
@@ -86,8 +82,8 @@ def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx
             all_titles.append(f"{title}(错误)")
     
     # 处理平均注意力图
-    if avg_attention_map is not None:
-        process_attention_map(avg_attention_map[0, 0], "平均注意力图")
+    if flow_map is not None:
+        process_attention_map(flow_map[0, 0], "平均光流图")
     
     # 处理单个查询的注意力图
     for i in range(min(num_queries, layer_attn_batch0.shape[1])):
