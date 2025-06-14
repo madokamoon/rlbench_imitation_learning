@@ -186,7 +186,7 @@ class RawToHDF5Converter:
                             mask_rgb_array[(img_array == 85) | (img_array == 86), 1] = 255
                             mask_rgb_array[(img_array == 81) , 2] = 255
                             img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
-                        elif self.taskname == "pick_and_lift_norot_wzf":
+                        elif self.taskname == "pick_and_lift_norot":
                             attention_ids = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
                             mask = np.isin(img_array, attention_ids)
                             # 保存应该关注的mask，机械臂、物体和终点，对应的真实RGB

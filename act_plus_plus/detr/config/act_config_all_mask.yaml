@@ -1,0 +1,17 @@
+defaults:
+  - /default
+
+task_name: pick_and_lift_norot
+custom_task: all_mask
+
+policy:
+  task_name: ${task_name}_${custom_task}
+  camera_names:
+    - front_camera_mask
+    - wrist_camera_mask
+    - overhead_camera_mask
+  dataset_dir: data/${task_name}/${data_sampler_config.save_path_end}_hdf5
+  ckpt_dir: training/${policy_class}_${task_name}/100demos_${custom_task}
+  wandb_project_name: ${policy_class}_${task_name}_${custom_task}
+  use_wandb: false
+

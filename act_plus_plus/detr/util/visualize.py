@@ -11,7 +11,11 @@
 # query_attn = layer_attn[batch_size, chunk_size, 2:]   跳过前两个非图像token的注意力，对于3个相机就是900 不固定
 # attention_map = query_attn[:total_feats].reshape(feat_h, feat_w)
 
-
+class aaaa:
+    def __init__(self, attn_weights, layer_idx=-1, flow_map=None):
+        self.attn_weights = attn_weights
+        self.layer_idx = layer_idx
+        self.flow_map = flow_map
 
 def visualize_multiple_attentions(image, attn_weights, num_queries=15, layer_idx=-1, flow_map=None):
     """将原始图像和多个查询的注意力热图竖向拼接为一张长条图像"""

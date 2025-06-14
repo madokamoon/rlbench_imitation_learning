@@ -11,7 +11,7 @@ e = IPython.embed
 
 import numpy as np
 import copy
-
+# from act_plus_plus.detr.util.visualize import visualize_multiple_attentions
 from util.visualize import visualize_multiple_attentions
 
 class ACTPolicy(nn.Module):

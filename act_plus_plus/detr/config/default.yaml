@@ -1,5 +1,5 @@
 policy_class: act_policy
-task_name: pick_and_lift_norot_wzf
+task_name: pick_and_lift_norot
 # task_name: push_button
 # task_name: pick_and_lift
 
