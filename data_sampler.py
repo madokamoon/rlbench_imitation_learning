@@ -55,7 +55,7 @@ class RLBenchProcessor:
         self.workspace_static = data_sampler_config['workspace_static']
         self.headless = data_sampler_config['headless']
         self.robot_init_state = data_sampler_config['robot_init_state']
-        self.rendermode = data_sampler_config['rendermode']
+        self.rendermode = data_sampler_config.get('rendermode', 'opengl3')
 
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
