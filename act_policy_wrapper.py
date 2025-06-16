@@ -91,9 +91,10 @@ class ACTPolicyWrapper:
         """预处理图像数据为模型输入格式"""
         curr_images = []
         # camera_ids = list(imgdata.keys())
-        camera_ids = self.camera_names 
+        camera_ids = self.camera_names
         for cam_id in camera_ids:
             pil_img = Image.fromarray(imgdata[cam_id])
+            # pil_img = Image.fromarray(np.repeat(imgdata[cam_id], 3, axis=2))
             resized_img = np.array(pil_img.resize((640, 480), Image.BILINEAR))
             curr_image = rearrange(resized_img, 'h w c -> c h w')
             curr_images.append(curr_image)

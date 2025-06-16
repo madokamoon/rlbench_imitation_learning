@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import sys 
 import hydra
 from omegaconf import OmegaConf
-
+import copy
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
 from rlbench.action_modes.arm_action_modes import JointVelocity, EndEffectorPoseViaPlanning
@@ -558,7 +558,7 @@ class RLBenchProcessor:
             # 创建空白RGB图像
             img_array = mask_img
 
-            if self.taskname.startswith("pick_and_lift"):
+            if self.taskname == "pick_and_lift":
                 mask_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
                 # 根据灰度值设置不同的RGB值
                 mask_rgb_array[(img_array == 35) | (img_array == 31) | (img_array == 34) , 0] = 255
@@ -572,6 +572,29 @@ class RLBenchProcessor:
                 mask_rgb_array[(img_array == 85) | (img_array == 86), 1] = 255
                 mask_rgb_array[(img_array == 81) , 2] = 255
                 img_array = np.clip(mask_rgb_array, 0, 255).astype(np.uint8)
+            elif self.taskname == "pick_and_lift_norot":
+                attention_ids = [44, 45, 40, 39, 41, 42, 84, 83, 35, 31, 34]
+                mask = np.isin(img_array, attention_ids)
+                # 保存应该关注的mask，机械臂、物体和终点，对应的真实RGB
+                mask_real_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                mask_real_array[mask] = rgb_img[mask]
+                mask_real_array = np.clip(mask_real_array, 0, 255).astype(np.uint8)
+                imgdata[f"{camera_name}_mask_real"] = mask_real_array
+                # 保存应该关注的mask，机械臂、物体和终点，全通道255
+                mask_attention_uni_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                mask_attention_uni_array[mask] = 255
+                mask_attention_uni_array = np.clip(mask_attention_uni_array, 0, 255).astype(np.uint8)
+                imgdata[f"{camera_name}_mask_attention_uni"] = mask_attention_uni_array
+                # 保存应该关注的mask，机械臂、物体和终点，人为编码
+                mask_attention_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                mask_attention_array[mask] = img_array[mask, None]
+                mask_attention_array = np.clip(mask_attention_array, 0, 255).astype(np.uint8)
+                imgdata[f"{camera_name}_mask_attention"] = mask_attention_array
+                # 保存全分割，三通道都是相同的灰度值
+                mask_all_rgb_array = np.zeros((img_array.shape[0], img_array.shape[1], 3), dtype=np.uint8)
+                mask_all_rgb_array = img_array[..., None]
+                mask_all_rgb_array = np.clip(mask_all_rgb_array, 0, 255).astype(np.uint8)
+                img_array = np.clip(mask_all_rgb_array, 0, 255).astype(np.uint8)
 
             imgdata[f"{camera_name}_mask"] = img_array
 
@@ -583,8 +606,6 @@ class RLBenchProcessor:
         # imgdata["overhead_camera"] =  np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
 
 
-
-        import copy
 
         # 关节控制
         # robot_state = list(copy.deepcopy(obs.joint_positions)) 

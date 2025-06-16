@@ -4,6 +4,27 @@ defaults:
 task_name: pick_and_lift_norot
 custom_task: all_mask
 
+mode: ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
+data_sampler_config:
+  save_path_head: 'data' # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
+  taskname: ${task_name}
+  save_path_end: '100demos_static'
+  num_demos: 100
+  image:
+    width: 640
+    height: 480
+  cameras:
+    - front_camera
+    - wrist_camera
+    # - left_shoulder_camera
+    # - right_shoulder_camera
+    - overhead_camera
+  static_positions: false
+  workspace_static: true
+  headless: false
+  robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
+
+
 policy:
   task_name: ${task_name}_${custom_task}
   camera_names:
