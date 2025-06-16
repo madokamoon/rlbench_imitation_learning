@@ -25,7 +25,7 @@ from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from act_policy_wrapper import ACTPolicyWrapper
 from pyrep.backend import sim
-
+from pyrep.const import RenderMode
 
 from tools.myutils import normalize_quaternion
 
@@ -55,7 +55,8 @@ class RLBenchProcessor:
         self.workspace_static = data_sampler_config['workspace_static']
         self.headless = data_sampler_config['headless']
         self.robot_init_state = data_sampler_config['robot_init_state']
-        
+        self.rendermode = data_sampler_config['rendermode']
+
         # 保存路径
         task_path = os.path.join(self.save_path_head, self.taskname)
         if self.save_path_end == "":
@@ -136,6 +137,12 @@ class RLBenchProcessor:
                 cameras_dict[camera_name].depth_in_meters = True  # 将深度存储为 0-1 归一化值
                 cameras_dict[camera_name].masks_as_one_channel = True  # 将掩码存储为单通道图像
                 cameras_dict[camera_name].image_size = (self.image_width, self.image_height)
+                if self.rendermode == 'opengl':
+                    cameras_dict[camera_name].render_mode = RenderMode.OPENGL
+                elif self.rendermode == 'opengl3':
+                    cameras_dict[camera_name].render_mode = RenderMode.OPENGL3
+                else:
+                    cameras_dict[camera_name].render_mode = RenderMode.OPENGL3
 
         # 设置其他观测参数
         obs_config.joint_positions = True

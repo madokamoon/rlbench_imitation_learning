@@ -8,7 +8,7 @@ mode: ["*collect_and_save_demos", "process_all_epochs", "act_eval"]
 data_sampler_config:
   save_path_head: 'data' # 保存路径 为 save_path_head + taskname + save_path_end/空白为时间戳
   taskname: ${task_name}
-  save_path_end: '100demos_static'
+  save_path_end: '100demos_static_noshadow' 
   num_demos: 100
   image:
     width: 640  
@@ -22,6 +22,7 @@ data_sampler_config:
   static_positions: false
   workspace_static: true    
   headless: false
+  rendermode: 'opengl3'   # 'opengl' 无阴影 or 'opengl3' 有阴影
   robot_init_state: [ 0 , 0 , 0 , -1.6 , 0 , 1.6 , 0.8 , 0.04, 0.04 ]
 
 # ------------------ 数据转换 ------------------
