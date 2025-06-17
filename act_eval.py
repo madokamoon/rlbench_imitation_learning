@@ -26,12 +26,15 @@ def main():
         cfg = yaml.safe_load(file)
     
     # 将命令行参数添加到配置中
+    cfg['policy']['ckpt_dir'] = args.ckpt
     cfg['mode'] = ["collect_and_save_demos", "process_all_epochs", "*act_eval"]
     cfg['policy']['episode_len'] = args.episode_len
     cfg['policy']['ckpt_name'] = args.ckpt_name
     cfg['policy']['show_3D_state'] = args.show_3D_state
     cfg['policy']['show_transform_attention'] = args.show_transform_attention
     cfg['policy']['temporal_agg'] = args.temporal_agg
+
+    
     
     processor = RLBenchProcessor(cfg)
     processor.run()

@@ -36,12 +36,34 @@ def main(cfg: OmegaConf):
     if cfg["policy"]['use_wandb']:
         expr_name = cfg["policy"]['ckpt_dir'].split('/')[-1]
         wandb.init(project=cfg["policy"]['wandb_project_name'], reinit=True, name=expr_name)
-        if 'kl_weight' in wandb.config.keys():
-            print(f'【sweep_kl模式】本次 kl_weight 为: {wandb.config.kl_weight}')
-            cfg["policy"]['kl_weight'] = wandb.config.kl_weight
-            cfg["policy"]['ckpt_dir'] = os.path.join(cfg["policy"]['ckpt_dir'], 'kl_'+str(wandb.config.kl_weight))
+        
+        if len(wandb.config.keys()) > 0:
+            # Sweep模式：处理所有config参数
+            print(f'【sweep模式】参数配置: {dict(wandb.config)}')
+            
+            # 将wandb.config中的所有参数更新到cfg["policy"]
+            for param_name, param_value in dict(wandb.config).items():
+                if param_name in cfg["policy"]:
+                    cfg["policy"][param_name] = param_value
+                    print(f'更新参数: {param_name} = {param_value}')
+            
+            # 使得num_queries等于chunk_size
+            cfg["policy"]["num_queries"] = cfg["policy"]["chunk_size"]
+
+            # 构建路径后缀字符串
+            path_suffix = ""
+            for param_name, param_value in dict(wandb.config).items():
+                path_suffix += f"{param_name}_{param_value}_"
+            path_suffix = path_suffix.rstrip("_")
+            
+            # 更新ckpt_dir路径
+            cfg["policy"]['ckpt_dir'] = os.path.join(cfg["policy"]['ckpt_dir'], str(path_suffix))
+            print(f'更新后的检查点路径: {cfg["policy"]["ckpt_dir"]}')
         else:
             print(f'【单次训练】')
+
+
+    
 
     args = cfg["policy"]
 
